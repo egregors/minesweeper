@@ -1,0 +1,18 @@
+# TODO
+
+* Game state
+** TODO Which states? INIT; PLAY; GAME_OVER;
+** TODO Add state loop
+
+* Base Game
+** DONE Render field frame
+** DONE Render cursor
+** TODO Set up mines
+** TODO Complexity of Game (amount of mines)
+
+* Control
+** TODO Find the way how to move cursor
+** TODO Mark cell
+** TODO Open cell
+** TODO Boom! (ref. game states)
+
