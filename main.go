@@ -1,8 +1,17 @@
 package main
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+const (
+	HIDE = '~'
+	MINE = '*'
+	FLUG = '!'
+	GESS = '?'
+	BOOM = 'X'
 )
 
 type Point [2]int
@@ -13,7 +22,7 @@ type model struct {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return tea.EnterAltScreen
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -36,7 +45,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	var frame []string
+	// TODO: title should be relative to field wight
+	frame := []string{
+		"     *** Minesweeper ***",
+		"     ===================",
+	}
 	for r := 0; r < 10; r++ {
 		var line []rune
 		for c := 0; c < 10; c++ {
@@ -51,20 +64,23 @@ func (m model) View() string {
 	return strings.Join(frame, "\n")
 }
 
-func main() {
+func newModel(n, m int) model {
 	var field [][]rune
-	field = make([][]rune, 10)
-	for i := 0; i < 10; i++ {
-		field[i] = make([]rune, 10)
-		for j := 0; j < 10; j++ {
-			field[i][j] = '~'
+	field = make([][]rune, n)
+	for i := 0; i < n; i++ {
+		field[i] = make([]rune, m)
+		for j := 0; j < m; j++ {
+			field[i][j] = HIDE
 		}
 	}
-	m := model{
+	return model{
 		field: field,
 		curr:  Point{0, 0},
 	}
-	p := tea.NewProgram(m)
+}
+
+func main() {
+	p := tea.NewProgram(newModel(10, 10))
 	if err := p.Start(); err != nil {
 		panic(err)
 	}
