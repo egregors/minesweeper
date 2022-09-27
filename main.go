@@ -1,7 +1,9 @@
 package main
 
 import (
+	"math/rand"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -17,10 +19,8 @@ const (
 type Point [2]int
 
 type model struct {
-	field [][]rune
-	curr  Point
-
-	minesCount int
+	field, mines [][]rune
+	curr         Point
 }
 
 func (m model) Init() tea.Cmd {
@@ -82,30 +82,78 @@ func (m model) View() string {
 		}
 		frame = append(frame, string(line))
 	}
-	return strings.Join(frame, "\n")
+
+	// TODO: DEBUG remove it!
+	// i want to see mines and numbers
+	mines := []string{"mines"}
+	for r := 0; r < 10; r++ {
+		var line []rune
+		for c := 0; c < 10; c++ {
+			ch := m.mines[r][c]
+			line = append(line, ' ', ch, ' ')
+		}
+		mines = append(mines, string(line))
+	}
+
+	return strings.Join(frame, "\n") + "\n\n" + strings.Join(mines, "\n")
 }
 
-func newModel(n, m int) model {
-	var field [][]rune
+func newModel(n, m, minesCount int) model {
+	var field, mines [][]rune
 	field = make([][]rune, n)
-	// main color
+	mines = make([][]rune, n)
+
 	for i := 0; i < n; i++ {
 		field[i] = make([]rune, m)
+		mines[i] = make([]rune, m)
+		for j := 0; j < m; j++ {
+			mines[i][j] = '0'
+		}
 		for j := 0; j < m; j++ {
 			field[i][j] = HIDE
 		}
 	}
 
 	// setup mines
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for minesCount > 0 {
+		r, c := rnd.Intn(n), rnd.Intn(m)
+		if mines[r][c] != MINE {
+			mines[r][c] = MINE
+			minesCount--
+		}
+	}
+	// count mines
+	dirs := [][]int{
+		{-1, -1}, {-1, 0}, {-1, 1},
+		{0, -1}, {0, 1},
+		{1, -1}, {1, 0}, {1, 1},
+	}
+
+	for r := 0; r < 10; r++ {
+		for c := 0; c < 10; c++ {
+			if mines[r][c] == MINE {
+				for _, d := range dirs {
+					newR, newC := r+d[0], c+d[1]
+					if newR >= 0 && newR < 10 && newC >= 0 && newC < 10 {
+						if mines[newR][newC] != MINE {
+							mines[newR][newC]++
+						}
+					}
+				}
+			}
+		}
+	}
 
 	return model{
 		field: field,
+		mines: mines,
 		curr:  Point{0, 0},
 	}
 }
 
 func main() {
-	p := tea.NewProgram(newModel(10, 10))
+	p := tea.NewProgram(newModel(10, 10, 10))
 	if err := p.Start(); err != nil {
 		panic(err)
 	}
