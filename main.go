@@ -19,6 +19,8 @@ type Point [2]int
 type model struct {
 	field [][]rune
 	curr  Point
+
+	minesCount int
 }
 
 func (m model) Init() tea.Cmd {
@@ -46,6 +48,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyRight:
 			if m.curr[1] < len(m.field[0])-1 {
 				m.curr[1]++
+			}
+
+		case tea.KeySpace:
+			c := m.field[m.curr[0]][m.curr[1]]
+			switch c {
+			case HIDE:
+				m.field[m.curr[0]][m.curr[1]] = FLUG
+			case FLUG:
+				m.field[m.curr[0]][m.curr[1]] = GESS
+			case GESS:
+				m.field[m.curr[0]][m.curr[1]] = HIDE
 			}
 		}
 	}
@@ -75,12 +88,16 @@ func (m model) View() string {
 func newModel(n, m int) model {
 	var field [][]rune
 	field = make([][]rune, n)
+	// main color
 	for i := 0; i < n; i++ {
 		field[i] = make([]rune, m)
 		for j := 0; j < m; j++ {
 			field[i][j] = HIDE
 		}
 	}
+
+	// setup mines
+
 	return model{
 		field: field,
 		curr:  Point{0, 0},
