@@ -32,13 +32,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case tea.KeyUp:
-			m.curr[0]--
+			if m.curr[0] > 0 {
+				m.curr[0]--
+			}
 		case tea.KeyDown:
-			m.curr[0]++
+			if m.curr[0] < len(m.field)-1 {
+				m.curr[0]++
+			}
 		case tea.KeyLeft:
-			m.curr[1]--
+			if m.curr[1] > 0 {
+				m.curr[1]--
+			}
 		case tea.KeyRight:
-			m.curr[1]++
+			if m.curr[1] < len(m.field[0])-1 {
+				m.curr[1]++
+			}
 		}
 	}
 	return m, nil
