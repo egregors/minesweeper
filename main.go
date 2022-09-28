@@ -9,6 +9,8 @@ import (
 )
 
 const (
+	GAME = iota
+	OVER
 	HIDE  = '~'
 	MINE  = '*'
 	FLUG  = '!'
@@ -17,9 +19,6 @@ const (
 	EMPTY = ' '
 
 	ZERO = '0'
-
-	GAME = iota
-	OVER
 )
 
 type Point [2]int
@@ -37,6 +36,10 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.state == OVER {
+		return m, tea.Quit
+	}
+
 	// current cell on field
 	c := m.field[m.curr[0]][m.curr[1]]
 	// current cell on mines
@@ -96,16 +99,40 @@ func (m model) View() string {
 		"     *** Minesweeper ***",
 		"     ===================",
 	}
-	for r := 0; r < m.n; r++ {
-		var line []rune
-		for c := 0; c < m.m; c++ {
-			lo, hi := ' ', ' '
-			if m.curr[0] == r && m.curr[1] == c {
-				lo, hi = '[', ']'
+
+	switch m.state {
+	case GAME:
+		for r := 0; r < m.n; r++ {
+			var line []rune
+			for c := 0; c < m.m; c++ {
+				lo, hi := ' ', ' '
+				if m.curr[0] == r && m.curr[1] == c {
+					lo, hi = '[', ']'
+				}
+				line = append(line, lo, m.field[r][c], hi)
 			}
-			line = append(line, lo, m.field[r][c], hi)
+			frame = append(frame, string(line))
 		}
-		frame = append(frame, string(line))
+	case OVER:
+		for r := 0; r < m.n; r++ {
+			var line []rune
+			for c := 0; c < m.m; c++ {
+				lo, hi := ' ', ' '
+				if m.curr[0] == r && m.curr[1] == c {
+					lo, hi = '[', ']'
+					line = append(line, lo, BOOM, hi)
+					continue
+				}
+				if m.mines[r][c] == MINE {
+					line = append(line, lo, MINE, hi)
+					continue
+				}
+				line = append(line, lo, m.field[r][c], hi)
+
+			}
+			frame = append(frame, string(line))
+		}
+		frame = append(frame, "GAME OVER")
 	}
 
 	// TODO: DEBUG remove it!
