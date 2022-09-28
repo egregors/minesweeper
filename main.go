@@ -9,18 +9,27 @@ import (
 )
 
 const (
-	HIDE = '~'
-	MINE = '*'
-	FLUG = '!'
-	GESS = '?'
-	BOOM = 'X'
+	HIDE  = '~'
+	MINE  = '*'
+	FLUG  = '!'
+	GESS  = '?'
+	BOOM  = 'X'
+	EMPTY = ' '
+
+	ZERO = '0'
+
+	GAME = iota
+	OVER
 )
 
 type Point [2]int
 
 type model struct {
 	field, mines [][]rune
+	n, m         int
 	curr         Point
+
+	state int
 }
 
 func (m model) Init() tea.Cmd {
@@ -28,11 +37,17 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// current cell on field
+	c := m.field[m.curr[0]][m.curr[1]]
+	// current cell on mines
+	mine := m.mines[m.curr[0]][m.curr[1]]
+
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
+		// TODO: I'd like to add WASD control here as well
 		case tea.KeyUp:
 			if m.curr[0] > 0 {
 				m.curr[0]--
@@ -51,7 +66,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case tea.KeySpace:
-			c := m.field[m.curr[0]][m.curr[1]]
+			switch mine {
+			case MINE:
+				m.state = OVER
+			case ZERO:
+				// TODO: open segment
+			default:
+				// show number
+				m.field[m.curr[0]][m.curr[1]] = mine
+			}
+
+		case tea.KeyEnter:
 			switch c {
 			case HIDE:
 				m.field[m.curr[0]][m.curr[1]] = FLUG
@@ -71,9 +96,9 @@ func (m model) View() string {
 		"     *** Minesweeper ***",
 		"     ===================",
 	}
-	for r := 0; r < 10; r++ {
+	for r := 0; r < m.n; r++ {
 		var line []rune
-		for c := 0; c < 10; c++ {
+		for c := 0; c < m.m; c++ {
 			lo, hi := ' ', ' '
 			if m.curr[0] == r && m.curr[1] == c {
 				lo, hi = '[', ']'
@@ -86,9 +111,9 @@ func (m model) View() string {
 	// TODO: DEBUG remove it!
 	// i want to see mines and numbers
 	mines := []string{"mines"}
-	for r := 0; r < 10; r++ {
+	for r := 0; r < m.n; r++ {
 		var line []rune
-		for c := 0; c < 10; c++ {
+		for c := 0; c < m.m; c++ {
 			ch := m.mines[r][c]
 			line = append(line, ' ', ch, ' ')
 		}
@@ -130,12 +155,12 @@ func newModel(n, m, minesCount int) model {
 		{1, -1}, {1, 0}, {1, 1},
 	}
 
-	for r := 0; r < 10; r++ {
-		for c := 0; c < 10; c++ {
+	for r := 0; r < n; r++ {
+		for c := 0; c < m; c++ {
 			if mines[r][c] == MINE {
 				for _, d := range dirs {
 					newR, newC := r+d[0], c+d[1]
-					if newR >= 0 && newR < 10 && newC >= 0 && newC < 10 {
+					if newR >= 0 && newR < n && newC >= 0 && newC < m {
 						if mines[newR][newC] != MINE {
 							mines[newR][newC]++
 						}
@@ -148,6 +173,8 @@ func newModel(n, m, minesCount int) model {
 	return model{
 		field: field,
 		mines: mines,
+		n:     n,
+		m:     m,
 		curr:  Point{0, 0},
 	}
 }
