@@ -1,6 +1,8 @@
 
 .PHONY: help run
 
+all: run
+
 start:  ## Run main.go with hot-reload
 	@nodemon --watch './**/*.go' --signal SIGTERM --exec 'clear && go' run main.go
 

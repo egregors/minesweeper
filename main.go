@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/muesli/termenv"
 	"math/rand"
 	"strings"
 	"time"
@@ -11,14 +12,28 @@ import (
 const (
 	GAME = iota
 	OVER
+
 	HIDE  = '~'
 	MINE  = '*'
-	FLUG  = '!'
+	FLAG  = '!'
 	GESS  = '?'
 	BOOM  = 'X'
 	EMPTY = ' '
 
 	ZERO = '0'
+)
+
+var (
+	color      = termenv.EnvColorProfile().Color
+	oneMines   = termenv.Style{}.Foreground(color("4")).Styled
+	twoMines   = termenv.Style{}.Foreground(color("2")).Styled
+	threeMines = termenv.Style{}.Foreground(color("1")).Styled
+	fourMines  = termenv.Style{}.Foreground(color("5")).Styled
+	fiveMines  = termenv.Style{}.Foreground(color("5")).Styled
+	sixMines   = termenv.Style{}.Foreground(color("6")).Styled
+	sevenMines = termenv.Style{}.Foreground(color("7")).Styled
+	eightMines = termenv.Style{}.Foreground(color("8")).Styled
+	nineMines  = termenv.Style{}.Foreground(color("9")).Styled
 )
 
 type Point [2]int
@@ -111,8 +126,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			switch c {
 			case HIDE:
-				m.field[m.curr[0]][m.curr[1]] = FLUG
-			case FLUG:
+				m.field[m.curr[0]][m.curr[1]] = FLAG
+			case FLAG:
 				m.field[m.curr[0]][m.curr[1]] = GESS
 			case GESS:
 				m.field[m.curr[0]][m.curr[1]] = HIDE
@@ -132,31 +147,35 @@ func (m model) View() string {
 	switch m.state {
 	case GAME:
 		for r := 0; r < m.n; r++ {
-			var line []rune
+			var line string
 			for c := 0; c < m.m; c++ {
-				lo, hi := ' ', ' '
+				lo, hi := " ", " "
 				if m.curr[0] == r && m.curr[1] == c {
-					lo, hi = '[', ']'
+					lo, hi = "[", "]"
 				}
-				line = append(line, lo, m.field[r][c], hi)
+				line += lo
+				line += styled(m.field[r][c])
+				line += hi
 			}
-			frame = append(frame, string(line))
+			frame = append(frame, line)
 		}
 	case OVER:
 		for r := 0; r < m.n; r++ {
-			var line []rune
+			var line string
 			for c := 0; c < m.m; c++ {
-				lo, hi := ' ', ' '
+				lo, hi := " ", " "
 				if m.curr[0] == r && m.curr[1] == c {
-					lo, hi = '[', ']'
-					line = append(line, lo, BOOM, hi)
+					lo, hi = "[", "]"
+					line += lo + string(BOOM) + hi
 					continue
 				}
 				if m.mines[r][c] == MINE {
-					line = append(line, lo, MINE, hi)
+					line += lo + string(MINE) + hi
 					continue
 				}
-				line = append(line, lo, m.field[r][c], hi)
+				line += lo
+				line += styled(m.field[r][c])
+				line += hi
 
 			}
 			frame = append(frame, string(line))
@@ -177,6 +196,32 @@ func (m model) View() string {
 	}
 
 	return strings.Join(frame, "\n") + "\n\n" + strings.Join(mines, "\n")
+}
+
+func styled(r rune) string {
+	s := string(r)
+	switch r {
+	case '1':
+		return oneMines(s)
+	case '2':
+		return twoMines(s)
+	case '3':
+		return threeMines(s)
+	case '4':
+		return fourMines(s)
+	case '5':
+		return fiveMines(s)
+	case '6':
+		return sixMines(s)
+	case '7':
+		return sevenMines(s)
+	case '8':
+		return eightMines(s)
+	case '9':
+		return nineMines(s)
+
+	}
+	return s
 }
 
 func newModel(n, m, minesCount int) model {
@@ -225,6 +270,12 @@ func newModel(n, m, minesCount int) model {
 			}
 		}
 	}
+
+	//for r := 0; r < n; r++ {
+	//	for c := 0; c < m; c++ {
+	//		if mines[r][c] == '1'
+	//	}
+	//}
 
 	return model{
 		field: field,
