@@ -74,6 +74,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = OVER
 			case ZERO:
 				// TODO: open segment
+				var openCell func(r, c int)
+				openCell = func(r, c int) {
+					if m.field[r][c] == EMPTY {
+						return
+					}
+
+					if m.mines[r][c] != ZERO {
+						// TODO: may it be a mine?
+						m.field[r][c] = m.mines[r][c]
+						return
+					}
+
+					m.field[r][c] = EMPTY
+					// open all cells around
+					// TODO: extract it maybe
+					dirs := [][]int{
+						{-1, -1}, {-1, 0}, {-1, 1},
+						{0, -1}, {0, 1},
+						{1, -1}, {1, 0}, {1, 1},
+					}
+					for _, d := range dirs {
+						newR, newC := r+d[0], c+d[1]
+						if newR >= 0 && newR < m.n && newC >= 0 && newC < m.m {
+							openCell(newR, newC)
+						}
+					}
+				}
+				openCell(m.curr[0], m.curr[1])
+
 			default:
 				// show number
 				m.field[m.curr[0]][m.curr[1]] = mine
