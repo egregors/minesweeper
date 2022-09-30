@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/muesli/termenv"
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/muesli/termenv"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -12,6 +13,7 @@ import (
 const (
 	GAME = iota
 	OVER
+	WIN
 
 	HIDE  = '~'
 	MINE  = '*'
@@ -43,7 +45,8 @@ type model struct {
 	n, m         int
 	curr         Point
 
-	state int
+	leftToOpen int
+	state      int
 }
 
 func (m model) Init() tea.Cmd {
@@ -61,6 +64,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	mine := m.mines[m.curr[0]][m.curr[1]]
 
 	if msg, ok := msg.(tea.KeyMsg); ok {
+		if m.state == WIN {
+			return m, tea.Quit
+		}
+
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
@@ -88,7 +95,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case MINE:
 				m.state = OVER
 			case ZERO:
-				// TODO: open segment
 				var openCell func(r, c int)
 				openCell = func(r, c int) {
 					if m.field[r][c] == EMPTY {
@@ -96,14 +102,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 
 					if m.mines[r][c] != ZERO {
-						// TODO: may it be a mine?
 						m.field[r][c] = m.mines[r][c]
 						return
 					}
 
 					m.field[r][c] = EMPTY
-					// open all cells around
-					// TODO: extract it maybe
+					m.leftToOpen--
+
 					dirs := [][]int{
 						{-1, -1}, {-1, 0}, {-1, 1},
 						{0, -1}, {0, 1},
@@ -117,9 +122,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				openCell(m.curr[0], m.curr[1])
+				if m.leftToOpen == 0 {
+					m.state = WIN
+					for r := 0; r < m.n; r++ {
+						for c := 0; c < m.m; c++ {
+							if m.field[r][c] == HIDE {
+								m.field[r][c] = m.mines[r][c]
+							}
+						}
+					}
+				}
 
 			default:
-				// show number
 				m.field[m.curr[0]][m.curr[1]] = mine
 			}
 
@@ -159,6 +173,18 @@ func (m model) View() string {
 			}
 			frame = append(frame, line)
 		}
+	case WIN:
+		for r := 0; r < m.n; r++ {
+			var line string
+			for c := 0; c < m.m; c++ {
+				lo, hi := " ", " "
+				line += lo
+				line += styled(m.field[r][c])
+				line += hi
+			}
+			frame = append(frame, line)
+		}
+		frame = append(frame, "YOU WON")
 	case OVER:
 		for r := 0; r < m.n; r++ {
 			var line string
@@ -183,19 +209,19 @@ func (m model) View() string {
 		frame = append(frame, "GAME OVER")
 	}
 
-	// TODO: DEBUG remove it!
-	// i want to see mines and numbers
-	mines := []string{"mines"}
-	for r := 0; r < m.n; r++ {
-		var line []rune
-		for c := 0; c < m.m; c++ {
-			ch := m.mines[r][c]
-			line = append(line, ' ', ch, ' ')
-		}
-		mines = append(mines, string(line))
-	}
+	// TODO: remove debug print
+	// var ms []string
+	// for _, r := range m.mines {
+	// var line []rune
+	// for _, c := range r {
+	// line = append(line, c)
+	// }
+	// ms = append(ms, string(line))
+	// }
+	// frame = append(frame, strings.Join(ms, "\n"))
+	// frame = append(frame, fmt.Sprintln(m.leftToOpen))
 
-	return strings.Join(frame, "\n") + "\n\n" + strings.Join(mines, "\n")
+	return strings.Join(frame, "\n")
 }
 
 func styled(r rune) string {
@@ -271,18 +297,23 @@ func newModel(n, m, minesCount int) model {
 		}
 	}
 
-	//for r := 0; r < n; r++ {
-	//	for c := 0; c < m; c++ {
-	//		if mines[r][c] == '1'
-	//	}
-	//}
+	// count shouldOpen \ empty cells
+	var shouldOpen int
+	for _, r := range mines {
+		for _, c := range r {
+			if c == ZERO {
+				shouldOpen++
+			}
+		}
+	}
 
 	return model{
-		field: field,
-		mines: mines,
-		n:     n,
-		m:     m,
-		curr:  Point{0, 0},
+		field:      field,
+		mines:      mines,
+		leftToOpen: shouldOpen,
+		n:          n,
+		m:          m,
+		curr:       Point{0, 0},
 	}
 }
 
