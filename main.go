@@ -7,6 +7,9 @@ import (
 
 	"github.com/muesli/termenv"
 
+	"fmt"
+	"reflect"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -36,17 +39,23 @@ var (
 	sevenMines = termenv.Style{}.Foreground(color("7")).Styled
 	eightMines = termenv.Style{}.Foreground(color("8")).Styled
 	nineMines  = termenv.Style{}.Foreground(color("9")).Styled
+
+	mainStyle       = termenv.Style{}.Foreground(color("11")).Styled
+	modelFieldStyle = termenv.Style{}.Foreground(color("39")).Styled
+	modelValStyle   = termenv.Style{}.Foreground(color("87")).Styled
 )
 
 type Point [2]int
 
 type model struct {
-	field, mines [][]rune
-	n, m         int
-	curr         Point
+	Field, Mines [][]rune
+	N, M         int
+	Curr         Point
 
-	leftToOpen int
-	state      int
+	LeftToOpen int
+	State      int
+
+	Dbg bool
 }
 
 func (m model) Init() tea.Cmd {
@@ -54,17 +63,17 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.state == OVER {
+	if m.State == OVER {
 		return m, tea.Quit
 	}
 
-	// current cell on field
-	c := m.field[m.curr[0]][m.curr[1]]
-	// current cell on mines
-	mine := m.mines[m.curr[0]][m.curr[1]]
+	// current cell on Field
+	c := m.Field[m.Curr[0]][m.Curr[1]]
+	// current cell on Mines
+	mine := m.Mines[m.Curr[0]][m.Curr[1]]
 
 	if msg, ok := msg.(tea.KeyMsg); ok {
-		if m.state == WIN {
+		if m.State == WIN {
 			return m, tea.Quit
 		}
 
@@ -74,40 +83,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// TODO: I'd like to add WASD control here as well
 		case tea.KeyUp:
-			if m.curr[0] > 0 {
-				m.curr[0]--
+			if m.Curr[0] > 0 {
+				m.Curr[0]--
 			}
 		case tea.KeyDown:
-			if m.curr[0] < len(m.field)-1 {
-				m.curr[0]++
+			if m.Curr[0] < len(m.Field)-1 {
+				m.Curr[0]++
 			}
 		case tea.KeyLeft:
-			if m.curr[1] > 0 {
-				m.curr[1]--
+			if m.Curr[1] > 0 {
+				m.Curr[1]--
 			}
 		case tea.KeyRight:
-			if m.curr[1] < len(m.field[0])-1 {
-				m.curr[1]++
+			if m.Curr[1] < len(m.Field[0])-1 {
+				m.Curr[1]++
 			}
 
 		case tea.KeySpace:
 			switch mine {
 			case MINE:
-				m.state = OVER
+				m.State = OVER
 			case ZERO:
 				var openCell func(r, c int)
 				openCell = func(r, c int) {
-					if m.field[r][c] == EMPTY {
+					if m.Field[r][c] == EMPTY {
 						return
 					}
 
-					if m.mines[r][c] != ZERO {
-						m.field[r][c] = m.mines[r][c]
+					if m.Mines[r][c] != ZERO {
+						m.Field[r][c] = m.Mines[r][c]
 						return
 					}
 
-					m.field[r][c] = EMPTY
-					m.leftToOpen--
+					m.Field[r][c] = EMPTY
+					m.LeftToOpen--
 
 					dirs := [][]int{
 						{-1, -1}, {-1, 0}, {-1, 1},
@@ -116,35 +125,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					for _, d := range dirs {
 						newR, newC := r+d[0], c+d[1]
-						if newR >= 0 && newR < m.n && newC >= 0 && newC < m.m {
+						if newR >= 0 && newR < m.N && newC >= 0 && newC < m.M {
 							openCell(newR, newC)
 						}
 					}
 				}
-				openCell(m.curr[0], m.curr[1])
-				if m.leftToOpen == 0 {
-					m.state = WIN
-					for r := 0; r < m.n; r++ {
-						for c := 0; c < m.m; c++ {
-							if m.field[r][c] == HIDE {
-								m.field[r][c] = m.mines[r][c]
+				openCell(m.Curr[0], m.Curr[1])
+				if m.LeftToOpen == 0 {
+					m.State = WIN
+					for r := 0; r < m.N; r++ {
+						for c := 0; c < m.M; c++ {
+							if m.Field[r][c] == HIDE {
+								m.Field[r][c] = m.Mines[r][c]
 							}
 						}
 					}
 				}
 
 			default:
-				m.field[m.curr[0]][m.curr[1]] = mine
+				m.Field[m.Curr[0]][m.Curr[1]] = mine
 			}
 
 		case tea.KeyEnter:
 			switch c {
 			case HIDE:
-				m.field[m.curr[0]][m.curr[1]] = FLAG
+				m.Field[m.Curr[0]][m.Curr[1]] = FLAG
 			case FLAG:
-				m.field[m.curr[0]][m.curr[1]] = GESS
+				m.Field[m.Curr[0]][m.Curr[1]] = GESS
 			case GESS:
-				m.field[m.curr[0]][m.curr[1]] = HIDE
+				m.Field[m.Curr[0]][m.Curr[1]] = HIDE
 			}
 		}
 	}
@@ -152,55 +161,55 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	// TODO: title should be relative to field wight
+	// TODO: title should be relative to Field wight
 	frame := []string{
 		"     *** Minesweeper ***",
 		"     ===================",
 	}
 
-	switch m.state {
+	switch m.State {
 	case GAME:
-		for r := 0; r < m.n; r++ {
+		for r := 0; r < m.N; r++ {
 			var line string
-			for c := 0; c < m.m; c++ {
+			for c := 0; c < m.M; c++ {
 				lo, hi := " ", " "
-				if m.curr[0] == r && m.curr[1] == c {
+				if m.Curr[0] == r && m.Curr[1] == c {
 					lo, hi = "[", "]"
 				}
 				line += lo
-				line += styled(m.field[r][c])
+				line += styled(m.Field[r][c])
 				line += hi
 			}
 			frame = append(frame, line)
 		}
 	case WIN:
-		for r := 0; r < m.n; r++ {
+		for r := 0; r < m.N; r++ {
 			var line string
-			for c := 0; c < m.m; c++ {
+			for c := 0; c < m.M; c++ {
 				lo, hi := " ", " "
 				line += lo
-				line += styled(m.field[r][c])
+				line += styled(m.Field[r][c])
 				line += hi
 			}
 			frame = append(frame, line)
 		}
 		frame = append(frame, "YOU WON")
 	case OVER:
-		for r := 0; r < m.n; r++ {
+		for r := 0; r < m.N; r++ {
 			var line string
-			for c := 0; c < m.m; c++ {
+			for c := 0; c < m.M; c++ {
 				lo, hi := " ", " "
-				if m.curr[0] == r && m.curr[1] == c {
+				if m.Curr[0] == r && m.Curr[1] == c {
 					lo, hi = "[", "]"
 					line += lo + string(BOOM) + hi
 					continue
 				}
-				if m.mines[r][c] == MINE {
+				if m.Mines[r][c] == MINE {
 					line += lo + string(MINE) + hi
 					continue
 				}
 				line += lo
-				line += styled(m.field[r][c])
+				line += styled(m.Field[r][c])
 				line += hi
 
 			}
@@ -209,17 +218,9 @@ func (m model) View() string {
 		frame = append(frame, "GAME OVER")
 	}
 
-	// TODO: remove debug print
-	// var ms []string
-	// for _, r := range m.mines {
-	// var line []rune
-	// for _, c := range r {
-	// line = append(line, c)
-	// }
-	// ms = append(ms, string(line))
-	// }
-	// frame = append(frame, strings.Join(ms, "\n"))
-	// frame = append(frame, fmt.Sprintln(m.leftToOpen))
+	if m.Dbg {
+		frame = append(frame, DebugWidget(m))
+	}
 
 	return strings.Join(frame, "\n")
 }
@@ -250,7 +251,7 @@ func styled(r rune) string {
 	return s
 }
 
-func newModel(n, m, minesCount int) model {
+func newModel(n, m, minesCount int, dbg bool) model {
 	var field, mines [][]rune
 	field = make([][]rune, n)
 	mines = make([][]rune, n)
@@ -266,7 +267,7 @@ func newModel(n, m, minesCount int) model {
 		}
 	}
 
-	// setup mines
+	// setup Mines
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for minesCount > 0 {
 		r, c := rnd.Intn(n), rnd.Intn(m)
@@ -275,7 +276,7 @@ func newModel(n, m, minesCount int) model {
 			minesCount--
 		}
 	}
-	// count mines
+	// count Mines
 	dirs := [][]int{
 		{-1, -1}, {-1, 0}, {-1, 1},
 		{0, -1}, {0, 1},
@@ -308,17 +309,70 @@ func newModel(n, m, minesCount int) model {
 	}
 
 	return model{
-		field:      field,
-		mines:      mines,
-		leftToOpen: shouldOpen,
-		n:          n,
-		m:          m,
-		curr:       Point{0, 0},
+		Field:      field,
+		Mines:      mines,
+		LeftToOpen: shouldOpen,
+		N:          n,
+		M:          m,
+		Curr:       Point{0, 0},
+		Dbg:        dbg,
 	}
 }
 
+// DebugModel is model supports debugging widget
+type DebugModel interface {
+	tea.Model
+}
+
+// DebugWidget returns some useful for debugging information
+func DebugWidget(m DebugModel) string {
+	err := "ERR: "
+
+	s := strings.Join([]string{
+		mainStyle("= = = = = DEBUG = = = = ="),
+		mainStyle("| ") + err,
+		getModelFrame(m),
+		mainStyle("= = = = = ----- = = = = ="),
+	}, "\n")
+
+	return s
+}
+
+func getModelFrame(m DebugModel) string {
+	e := reflect.ValueOf(&m).Elem().Elem()
+	n := e.NumField()
+	res := make([]string, n)
+
+	for i := 0; i < n; i++ {
+		varName := e.Type().Field(i).Name
+		varType := e.Type().Field(i).Type
+		varValue := e.Field(i).Interface()
+
+		res[i] = fmt.Sprintf(
+			"%-40s %-20s %-30s",
+			mainStyle("| ")+modelFieldStyle(varName),
+			"["+varType.String()+"]",
+			modelValStyle(fmt.Sprintf("%v", varValue)),
+		)
+	}
+
+	return strings.Join(res, "\n")
+}
+
+func errStyle(currErr string) {
+	panic("unimplemented")
+}
+
 func main() {
-	p := tea.NewProgram(newModel(10, 10, 10))
+	// TODO:
+	// - [x] add debug mode
+	// - [ ] get settings from CLI
+	// - [ ] tutorial
+	// - [ ] fancy title and game over \ won message
+	// - [ ] difficulty level
+	// - [ ] endless circle game (start the new one, when player won or lose)
+
+	p := tea.NewProgram(newModel(10, 10, 10, true))
 	if err := p.Start(); err != nil {
 		panic(err)
 	}
