@@ -13,6 +13,40 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type Difficulty int
+
+const (
+	EASY Difficulty = iota
+	NORMAL
+	HARD
+)
+
+type Game struct {
+	UI         tea.Program
+	difficulty Difficulty
+}
+
+func NewGame(difficulty Difficulty, dbg bool) *Game {
+	var m model
+
+	switch difficulty {
+	case EASY:
+		m = newModel(9, 9, 10, dbg)
+	case NORMAL:
+		m = newModel(16, 16, 40, dbg)
+	case HARD:
+		m = newModel(16, 30, 99, dbg)
+	}
+
+	return &Game{
+		UI: *tea.NewProgram(m),
+	}
+}
+
+func (g *Game) Run() error {
+	return g.UI.Start()
+}
+
 const (
 	GAME = iota
 	OVER
@@ -367,13 +401,17 @@ func main() {
 	// TODO:
 	// - [x] add debug mode
 	// - [ ] get settings from CLI
+	// - [ ] add Game abstraction
 	// - [ ] tutorial
 	// - [ ] fancy title and game over \ won message
-	// - [ ] difficulty level
+	// - [x] difficulty level
+	//  * ease	- 9x9 board containing 10 mines
+	//  * normal	- 16x16 board with 40 mines
+	//  * hard	- 30x16 board with 99 mines
 	// - [ ] endless circle game (start the new one, when player won or lose)
 
-	p := tea.NewProgram(newModel(10, 10, 10, true))
-	if err := p.Start(); err != nil {
+	g := NewGame(HARD, false)
+	if err := g.Run(); err != nil {
 		panic(err)
 	}
 }
