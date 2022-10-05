@@ -11,6 +11,8 @@ import (
 	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/jessevdk/go-flags"
+	"os"
 )
 
 type Difficulty int
@@ -393,15 +395,15 @@ func getModelFrame(m DebugModel) string {
 	return strings.Join(res, "\n")
 }
 
-func errStyle(currErr string) {
-	panic("unimplemented")
+type Opts struct {
+	Dbg bool `long:"dbg" env:"DEBUG" description:"Debug mode"`
 }
 
 func main() {
 	// TODO:
 	// - [x] add debug mode
-	// - [ ] get settings from CLI
-	// - [ ] add Game abstraction
+	// - [x] get arguments from command line
+	// - [x] add Game abstraction
 	// - [ ] tutorial
 	// - [ ] fancy title and game over \ won message
 	// - [x] difficulty level
@@ -410,7 +412,16 @@ func main() {
 	//  * hard	- 30x16 board with 99 mines
 	// - [ ] endless circle game (start the new one, when player won or lose)
 
-	g := NewGame(HARD, false)
+	var opts Opts
+	p := flags.NewParser(&opts, flags.PrintErrors|flags.PassDoubleDash|flags.HelpFlag)
+	if _, err := p.Parse(); err != nil {
+		if err.(*flags.Error).Type != flags.ErrHelp {
+			fmt.Printf("cli error: %v", err)
+		}
+		os.Exit(2)
+	}
+
+	g := NewGame(EASY, opts.Dbg)
 	if err := g.Run(); err != nil {
 		panic(err)
 	}
