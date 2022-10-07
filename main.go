@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/egregors/minesweeper/cmd"
 	"github.com/egregors/minesweeper/pkg"
 	"github.com/jessevdk/go-flags"
 	"os"
@@ -22,7 +23,7 @@ func main() {
 	}
 
 	g := game.NewGame(game.EASY, opts.Dbg)
-	if err := g.Run(); err != nil {
+	if err := cmd.RunCli(g.GetModel()); err != nil {
 		panic(err)
 	}
 }
