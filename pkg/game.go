@@ -13,6 +13,21 @@ const (
 	HARD
 )
 
+const (
+	GAME = iota
+	OVER
+	WIN
+
+	HIDE  = '~'
+	MINE  = '*'
+	FLAG  = '!'
+	GESS  = '?'
+	BOOM  = 'X'
+	EMPTY = ' '
+
+	ZERO = '0'
+)
+
 type Game struct {
 	m          Model
 	difficulty Difficulty
@@ -38,21 +53,6 @@ func NewGame(difficulty Difficulty, dbg bool) *Game {
 		m: m,
 	}
 }
-
-const (
-	GAME = iota
-	OVER
-	WIN
-
-	HIDE  = '~'
-	MINE  = '*'
-	FLAG  = '!'
-	GESS  = '?'
-	BOOM  = 'X'
-	EMPTY = ' '
-
-	ZERO = '0'
-)
 
 type Point [2]int
 

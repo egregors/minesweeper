@@ -4,6 +4,19 @@ github.com/charmbracelet/bubbletea
 # github.com/containerd/console v1.0.3
 ## explicit; go 1.13
 github.com/containerd/console
+# github.com/gobwas/httphead v0.1.0
+## explicit; go 1.15
+github.com/gobwas/httphead
+# github.com/gobwas/pool v0.2.1
+## explicit
+github.com/gobwas/pool
+github.com/gobwas/pool/internal/pmath
+github.com/gobwas/pool/pbufio
+github.com/gobwas/pool/pbytes
+# github.com/gobwas/ws v1.1.0
+## explicit; go 1.15
+github.com/gobwas/ws
+github.com/gobwas/ws/wsutil
 # github.com/jessevdk/go-flags v1.5.0
 ## explicit; go 1.15
 github.com/jessevdk/go-flags

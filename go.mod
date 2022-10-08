@@ -4,12 +4,15 @@ go 1.19
 
 require (
 	github.com/charmbracelet/bubbletea v0.22.1
+	github.com/gobwas/ws v1.1.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/muesli/termenv v0.11.1-0.20220212125758-44cd13922739
 )
 
 require (
 	github.com/containerd/console v1.0.3 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
