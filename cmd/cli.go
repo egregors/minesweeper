@@ -3,8 +3,12 @@ package cmd
 import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
-	game "github.com/egregors/minesweeper/pkg"
+	g "github.com/egregors/minesweeper/pkg"
+	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 	"github.com/muesli/termenv"
+	"log"
+	"net"
 	"reflect"
 	"strings"
 )
@@ -26,8 +30,8 @@ var (
 	modelValStyle   = termenv.Style{}.Foreground(color("87")).Styled
 )
 
-func RunCli(m game.Model) error {
-	UI := tea.NewProgram(model{m})
+func RunCli(m *g.Model, conn net.Conn) error {
+	UI := tea.NewProgram(model{m, g.Point{}, conn})
 	if err := UI.Start(); err != nil {
 		return err
 	}
@@ -35,7 +39,10 @@ func RunCli(m game.Model) error {
 }
 
 type model struct {
-	game.Model
+	*g.Model
+	// all this field should be exposed because of debug mode
+	Curr g.Point
+	Conn net.Conn
 }
 
 func (m model) Init() tea.Cmd {
@@ -43,7 +50,7 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.State == game.OVER {
+	if m.State == g.OVER {
 		return m, tea.Quit
 	}
 
@@ -53,7 +60,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	mine := m.Mines[m.Curr[0]][m.Curr[1]]
 
 	if msg, ok := msg.(tea.KeyMsg); ok {
-		if m.State == game.WIN {
+		if m.State == g.WIN {
 			return m, tea.Quit
 		}
 
@@ -65,37 +72,53 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyUp:
 			if m.Curr[0] > 0 {
 				m.Curr[0]--
+				// todo: just to test, remove it
+				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
+					log.Printf("can't sent cur to server")
+				}
 			}
 		case tea.KeyDown:
 			if m.Curr[0] < len(m.Field)-1 {
 				m.Curr[0]++
+				// todo: just to test, remove it
+				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
+					log.Printf("can't sent cur to server")
+				}
 			}
 		case tea.KeyLeft:
 			if m.Curr[1] > 0 {
 				m.Curr[1]--
+				// todo: just to test, remove it
+				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
+					log.Printf("can't sent cur to server")
+				}
 			}
 		case tea.KeyRight:
 			if m.Curr[1] < len(m.Field[0])-1 {
 				m.Curr[1]++
+				// todo: just to test, remove it
+				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
+					log.Printf("can't sent cur to server")
+				}
 			}
 
 		case tea.KeySpace:
 			switch mine {
-			case game.MINE:
-				m.State = game.OVER
-			case game.ZERO:
+			case g.MINE:
+				m.State = g.OVER
+			case g.ZERO:
 				var openCell func(r, c int)
 				openCell = func(r, c int) {
-					if m.Field[r][c] == game.EMPTY {
+					if m.Field[r][c] == g.EMPTY {
 						return
 					}
 
-					if m.Mines[r][c] != game.ZERO {
+					if m.Mines[r][c] != g.ZERO {
 						m.Field[r][c] = m.Mines[r][c]
 						return
 					}
 
-					m.Field[r][c] = game.EMPTY
+					m.Field[r][c] = g.EMPTY
 					m.LeftToOpen--
 
 					dirs := [][]int{
@@ -112,10 +135,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				openCell(m.Curr[0], m.Curr[1])
 				if m.LeftToOpen == 0 {
-					m.State = game.WIN
+					m.State = g.WIN
 					for r := 0; r < m.N; r++ {
 						for c := 0; c < m.M; c++ {
-							if m.Field[r][c] == game.HIDE {
+							if m.Field[r][c] == g.HIDE {
 								m.Field[r][c] = m.Mines[r][c]
 							}
 						}
@@ -128,12 +151,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyEnter:
 			switch c {
-			case game.HIDE:
-				m.Field[m.Curr[0]][m.Curr[1]] = game.FLAG
-			case game.FLAG:
-				m.Field[m.Curr[0]][m.Curr[1]] = game.GESS
-			case game.GESS:
-				m.Field[m.Curr[0]][m.Curr[1]] = game.HIDE
+			case g.HIDE:
+				m.Field[m.Curr[0]][m.Curr[1]] = g.FLAG
+			case g.FLAG:
+				m.Field[m.Curr[0]][m.Curr[1]] = g.GESS
+			case g.GESS:
+				m.Field[m.Curr[0]][m.Curr[1]] = g.HIDE
 			}
 		}
 	}
@@ -148,7 +171,7 @@ func (m model) View() string {
 	}
 
 	switch m.State {
-	case game.GAME:
+	case g.GAME:
 		for r := 0; r < m.N; r++ {
 			var line string
 			for c := 0; c < m.M; c++ {
@@ -162,7 +185,7 @@ func (m model) View() string {
 			}
 			frame = append(frame, line)
 		}
-	case game.WIN:
+	case g.WIN:
 		for r := 0; r < m.N; r++ {
 			var line string
 			for c := 0; c < m.M; c++ {
@@ -174,18 +197,18 @@ func (m model) View() string {
 			frame = append(frame, line)
 		}
 		frame = append(frame, "YOU WON")
-	case game.OVER:
+	case g.OVER:
 		for r := 0; r < m.N; r++ {
 			var line string
 			for c := 0; c < m.M; c++ {
 				lo, hi := " ", " "
 				if m.Curr[0] == r && m.Curr[1] == c {
 					lo, hi = "[", "]"
-					line += lo + string(game.BOOM) + hi
+					line += lo + string(g.BOOM) + hi
 					continue
 				}
-				if m.Mines[r][c] == game.MINE {
-					line += lo + string(game.MINE) + hi
+				if m.Mines[r][c] == g.MINE {
+					line += lo + string(g.MINE) + hi
 					continue
 				}
 				line += lo

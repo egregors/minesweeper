@@ -1,6 +1,10 @@
 package game
 
 import (
+	"bytes"
+	"encoding/gob"
+	"fmt"
+	"log"
 	"math/rand"
 	"time"
 )
@@ -29,12 +33,24 @@ const (
 )
 
 type Game struct {
-	m          Model
-	difficulty Difficulty
+	M          Model
+	Difficulty Difficulty
+
+	dbg bool
 }
 
-func (g Game) GetModel() Model {
-	return g.m
+func (g Game) ToGob() []byte {
+	buf := new(bytes.Buffer)
+	encoder := gob.NewEncoder(buf)
+	err := encoder.Encode(g)
+	if err != nil {
+		log.Printf("can't convert to gob: %s", err.Error())
+	}
+	return buf.Bytes()
+}
+
+func (g Game) getModel() Model {
+	return g.M
 }
 
 func NewGame(difficulty Difficulty, dbg bool) *Game {
@@ -50,19 +66,31 @@ func NewGame(difficulty Difficulty, dbg bool) *Game {
 	}
 
 	return &Game{
-		m: m,
+		M:          m,
+		Difficulty: difficulty,
+		dbg:        dbg,
 	}
 }
 
 type Point [2]int
 
+func (p *Point) String() string {
+	return fmt.Sprintf("[%d:%d]", p[0], p[1])
+}
+
+func (p *Point) FromGob(from []byte) {
+	FromGob(from, p)
+}
+
+func (p *Point) ToGob() []byte {
+	return ToGob(p)
+}
+
 type Model struct {
 	Field, Mines [][]rune
 	N, M         int
-	Curr         Point
-
-	LeftToOpen int
-	State      int
+	LeftToOpen   int
+	State        int
 
 	Dbg bool
 }
@@ -130,7 +158,6 @@ func NewModel(n, m, minesCount int, dbg bool) Model {
 		LeftToOpen: shouldOpen,
 		N:          n,
 		M:          m,
-		Curr:       Point{0, 0},
 		Dbg:        dbg,
 	}
 }

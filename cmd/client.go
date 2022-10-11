@@ -1,8 +1,12 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"fmt"
+	tea "github.com/charmbracelet/bubbletea"
+	g "github.com/egregors/minesweeper/pkg"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"log"
@@ -15,9 +19,9 @@ type Client struct {
 	serverAddr string
 	conn       net.Conn
 
-	gameData string
+	game *g.Game
 
-	//UI tea.Program
+	ui tea.Program
 }
 
 func NewClient() *Client {
@@ -37,7 +41,7 @@ func (c *Client) connect() error {
 	}
 	return nil
 
-	// TODO: when should i close the conn?
+	// TODO: when should i close the Conn?
 }
 
 func (c *Client) Run() error {
@@ -55,12 +59,12 @@ func (c *Client) Run() error {
 
 		// game loop
 		for {
-			log.Printf("STATE: %s", c.gameData)
+			log.Printf("STATE: %v", c.game)
 
 			// need to INIT game
 			// TODO: make if through fsm
-			if c.gameData == "" {
-				// hi server messsage
+			if c.game == nil {
+				// hi server message
 				if err := wsutil.WriteClientMessage(c.conn, ws.OpText, nil); err != nil {
 					fmt.Println("Cannot send: " + err.Error())
 					continue
@@ -72,8 +76,20 @@ func (c *Client) Run() error {
 					fmt.Println("Cannot receive data: " + err.Error())
 					continue
 				}
-				gameData := string(msg)
-				c.gameData = gameData
+
+				// TODO: extract to Client method
+				buf := bytes.NewBuffer(msg)
+				decoder := gob.NewDecoder(buf)
+				err = decoder.Decode(&c.game)
+				if err != nil {
+					panic(err)
+				}
+
+				// run ui
+				err = RunCli(&c.game.M, c.conn)
+				if err != nil {
+					panic(err)
+				}
 
 				continue
 			}

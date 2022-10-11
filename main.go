@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"github.com/egregors/minesweeper/cmd"
+	g "github.com/egregors/minesweeper/pkg"
 	"github.com/jessevdk/go-flags"
 	"os"
 )
 
 type Opts struct {
 	Dbg bool `long:"dbg" env:"DEBUG" description:"Debug mode"`
+	// TODO: rework CLI
 	Srv bool `short:"d"`
 }
 
@@ -23,14 +25,9 @@ func main() {
 		os.Exit(2)
 	}
 
-	// TODO: single player?
-	//g := game.NewGame(game.EASY, opts.Dbg)
-	//if err := cmd.RunCli(g.GetModel()); err != nil {
-	//	panic(err)
-	//}
-
 	if opts.Srv {
-		if err := cmd.NewServer().Run(); err != nil {
+		game := g.NewGame(g.EASY, true)
+		if err := cmd.NewServer(game, opts.Dbg).Run(); err != nil {
 			panic(err)
 		}
 		return
