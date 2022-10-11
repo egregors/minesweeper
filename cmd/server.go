@@ -250,29 +250,38 @@ func (m serverUIModel) fieldFrame() string {
 	for r := 0; r < m.N; r++ {
 		var line string
 		for c := 0; c < m.M; c++ {
+			// player cursors marks
 			lo, hi := " ", " "
-			if p1Cur != nil {
-				if r == p1Cur[0] && c == p1Cur[1] {
-					lo = P1Style("[")
-					hi = P1Style("]")
-				}
-			}
-			if p2Cur != nil {
-				if r == p2Cur[0] && c == p2Cur[1] {
-					lo = P2Style("[")
-					hi = P2Style("]")
-				}
-			}
-			if p1Cur != nil && p2Cur != nil {
-				if p1Cur[0] == p2Cur[0] && p1Cur[1] == p2Cur[1] {
+			{
+				if p1Cur != nil {
 					if r == p1Cur[0] && c == p1Cur[1] {
 						lo = P1Style("[")
+						hi = P1Style("]")
 					}
 				}
-
+				if p2Cur != nil {
+					if r == p2Cur[0] && c == p2Cur[1] {
+						lo = P2Style("[")
+						hi = P2Style("]")
+					}
+				}
+				if p1Cur != nil && p2Cur != nil {
+					if p1Cur[0] == p2Cur[0] && p1Cur[1] == p2Cur[1] {
+						if r == p1Cur[0] && c == p1Cur[1] {
+							lo = P1Style("[")
+						}
+					}
+				}
 			}
+
+			// mines
+			cell := m.Field[r][c]
+			if m.Mines[r][c] == g.MINE {
+				cell = g.MINE
+			}
+
 			line += lo
-			line += string(m.Field[r][c])
+			line += string(cell)
 			line += hi
 		}
 		frames = append(frames, line)
