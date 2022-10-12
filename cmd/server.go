@@ -96,11 +96,11 @@ type Srv struct {
 	ps   players
 	ui   *tea.Program
 
-	logs []string
-	dbg  bool
+	logger g.Logger
+	dbg    bool
 }
 
-func NewServer(game *g.Game, dbg bool) *Srv {
+func NewServer(game *g.Game, dbg bool, logger g.Logger) *Srv {
 	s := new(Srv)
 	s.game = game
 	s.ps = make(players)
@@ -111,11 +111,9 @@ func NewServer(game *g.Game, dbg bool) *Srv {
 	})
 
 	s.dbg = dbg
-	return s
-}
+	s.logger = logger
 
-func (s *Srv) log(line string) {
-	(*s).logs = append((*s).logs, line)
+	return s
 }
 
 func (s *Srv) String() string {
@@ -132,7 +130,7 @@ func (s *Srv) String() string {
 
 func (s *Srv) Run() error {
 	// start WS server
-	s.log("Server started, waiting for connection from players...")
+	log.Print("Server started, waiting for connection from players...")
 
 	go func() {
 		http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -140,11 +138,11 @@ func (s *Srv) Run() error {
 			if err != nil {
 				// TODO: use own logger
 				log.Println("Error starting socket server: " + err.Error())
-				s.log(fmt.Sprintf("Error starting socket server: %s", err.Error()))
+				log.Printf("Error starting socket server: %s", err.Error())
 			}
 
 			addr := conn.RemoteAddr().String()
-			s.log(fmt.Sprintf("Client %s connected", addr))
+			log.Printf("Client %s connected", addr)
 
 			go func() {
 				defer func() { _ = conn.Close() }()
@@ -152,8 +150,8 @@ func (s *Srv) Run() error {
 					// GET msg
 					msg, op, err := wsutil.ReadClientData(conn)
 					if err != nil {
-						s.log(fmt.Sprintf("Error receiving data: " + err.Error()))
-						s.log(fmt.Sprintf("Client %s disconnected", addr))
+						log.Printf("Error receiving data: " + err.Error())
+						log.Printf("Client %s disconnected", addr)
 						s.ps.disconnect(addr)
 						return
 					}
@@ -168,8 +166,8 @@ func (s *Srv) Run() error {
 						})
 
 						if err := wsutil.WriteServerMessage(conn, ws.OpBinary, s.game.ToGob()); err != nil {
-							s.log(fmt.Sprintln("Error sending data: " + err.Error()))
-							s.log("Client disconnected")
+							log.Printf("Error sending data: %s", err.Error())
+							log.Print("Client disconnected")
 							s.ps.disconnect(addr)
 							return
 						}
@@ -179,7 +177,7 @@ func (s *Srv) Run() error {
 						p.FromGob(msg)
 						s.ps[addr].cur = p
 						// todo: render server field
-						s.log(fmt.Sprintf("GOT request: %s", p.String()))
+						log.Printf("GOT request: %s", p.String())
 						s.ui.Send(*s.ps[addr])
 					}
 				}
@@ -188,7 +186,7 @@ func (s *Srv) Run() error {
 		}))
 	}()
 
-	s.log("UI started")
+	log.Print("UI started")
 	return s.ui.Start()
 }
 
@@ -203,7 +201,8 @@ func (m serverUIModel) Init() tea.Cmd {
 }
 
 func (m serverUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.s.log(fmt.Sprintf("msg: %T", msg))
+	log.Printf("msg: %T", msg)
+
 	switch msg.(type) {
 	case tea.KeyMsg:
 		return m, tea.Quit
@@ -214,7 +213,7 @@ func (m serverUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 	default:
-		m.s.log("WRONG TYPE")
+		log.Print("WRONG TYPE")
 		return m, nil
 	}
 }
@@ -302,11 +301,12 @@ func (m serverUIModel) logsFrame() string {
 
 	// logsFrameSize should be less than 23 (visible ASCII colors 232-255)
 	logsFrameSize := 10
+	logs := m.s.logger.GetLogs()
 
 	title := "LOGS:"
 	var logLines []string
 
-	limit := len(m.s.logs)
+	limit := len(logs)
 	if limit > logsFrameSize {
 		limit = logsFrameSize
 	}
@@ -318,8 +318,8 @@ func (m serverUIModel) logsFrame() string {
 		return termenv.Style{}.Foreground(color(clr)).Styled(s)
 	}
 
-	for i := len(m.s.logs) - 1; i > len(m.s.logs)-limit; i-- {
-		logLines = append(logLines, s(clrCode, m.s.logs[i]))
+	for i := len(logs) - 1; i > len(logs)-limit; i-- {
+		logLines = append(logLines, s(clrCode, logs[i]))
 		clrCode -= 2
 	}
 
@@ -333,6 +333,7 @@ func (m serverUIModel) logsFrame() string {
 
 	return strings.Join([]string{
 		title,
-		strings.Join(logLines, "\n"),
+		"\n",
+		strings.Join(logLines, ""),
 	}, "\n")
 }

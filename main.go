@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/egregors/minesweeper/cmd"
 	g "github.com/egregors/minesweeper/pkg"
 	"github.com/jessevdk/go-flags"
-	"os"
 )
 
 type Opts struct {
@@ -25,9 +27,13 @@ func main() {
 		os.Exit(2)
 	}
 
+	// setup logger
+	logger := g.NewLogger()
+	log.SetOutput(logger)
+
 	if opts.Srv {
 		game := g.NewGame(g.EASY, true)
-		if err := cmd.NewServer(game, opts.Dbg).Run(); err != nil {
+		if err := cmd.NewServer(game, opts.Dbg, logger).Run(); err != nil {
 			panic(err)
 		}
 		return
