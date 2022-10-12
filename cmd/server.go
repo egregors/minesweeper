@@ -147,12 +147,12 @@ func (s *Srv) Run() error {
 			go func() {
 				defer func() { _ = conn.Close() }()
 				for {
-					// GET msg
 					msg, op, err := wsutil.ReadClientData(conn)
 					if err != nil {
 						log.Printf("Error receiving data: " + err.Error())
 						log.Printf("Client %s disconnected", addr)
 						s.ps.disconnect(addr)
+						s.ui.Send(*s.ps[addr])
 						return
 					}
 
@@ -164,7 +164,9 @@ func (s *Srv) Run() error {
 							addr:     addr,
 							isOnline: true,
 						})
+						s.ui.Send(*s.ps[addr])
 
+						// send game state to client
 						if err := wsutil.WriteServerMessage(conn, ws.OpBinary, s.game.ToGob()); err != nil {
 							log.Printf("Error sending data: %s", err.Error())
 							log.Print("Client disconnected")
@@ -173,10 +175,15 @@ func (s *Srv) Run() error {
 						}
 
 					case ws.OpBinary:
+						// TODO:
+						//  - [ ] receive GUSS, FLAG, OPEN command
+						//  - [ ] render new admin field after OPEN
+						//  - [ ] turns (P1 -> P2 -> ...)
+						//  - [ ] client commands and maybe refactor client code maybe
+
 						var p g.Point
 						p.FromGob(msg)
 						s.ps[addr].cur = p
-						// todo: render server field
 						log.Printf("GOT request: %s", p.String())
 						s.ui.Send(*s.ps[addr])
 					}
@@ -333,7 +340,6 @@ func (m serverUIModel) logsFrame() string {
 
 	return strings.Join([]string{
 		title,
-		"\n",
 		strings.Join(logLines, ""),
 	}, "\n")
 }
