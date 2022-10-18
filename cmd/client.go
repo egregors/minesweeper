@@ -1,18 +1,22 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	g "github.com/egregors/minesweeper/pkg"
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"log"
-	"math/rand"
 	"net"
 	"time"
+)
+
+type clientState int
+
+const (
+	INIT clientState = iota
+	GAME
 )
 
 type Client struct {
@@ -20,8 +24,9 @@ type Client struct {
 	conn       net.Conn
 
 	game *g.Game
+	ui   tea.Program
 
-	ui tea.Program
+	state clientState
 }
 
 func NewClient() *Client {
@@ -46,7 +51,6 @@ func (c *Client) connect() error {
 
 func (c *Client) Run() error {
 	log.Println("Client started")
-
 	// connection retry loop
 	for {
 		if err := c.connect(); err != nil {
@@ -59,11 +63,8 @@ func (c *Client) Run() error {
 
 		// game loop
 		for {
-			log.Printf("STATE: %v", c.game)
-
-			// need to INIT game
-			// TODO: make if through fsm
-			if c.game == nil {
+			switch c.state {
+			case INIT:
 				// hi server message
 				if err := wsutil.WriteClientMessage(c.conn, ws.OpText, nil); err != nil {
 					fmt.Println("Cannot send: " + err.Error())
@@ -76,37 +77,25 @@ func (c *Client) Run() error {
 					fmt.Println("Cannot receive data: " + err.Error())
 					continue
 				}
-
-				// TODO: extract to Client method
-				buf := bytes.NewBuffer(msg)
-				decoder := gob.NewDecoder(buf)
-				err = decoder.Decode(&c.game)
-				if err != nil {
-					panic(err)
-				}
+				g.FromGob(msg, &c.game)
 
 				// run ui
 				err = RunCli(&c.game.M, c.conn)
 				if err != nil {
+					// TODO: don't panic, bro
 					panic(err)
 				}
+				return nil
 
-				continue
+			case GAME:
+				msg, _, err := wsutil.ReadServerData(c.conn)
+				if err != nil {
+					fmt.Println("Cannot receive data: " + err.Error())
+					continue
+				}
+				log.Println("got update ", string(msg))
 			}
-
-			// waiting for update
-			msg, _, err := wsutil.ReadServerData(c.conn)
-			if err != nil {
-				fmt.Println("Cannot receive data: " + err.Error())
-				continue
-			}
-			log.Println("got update ", string(msg))
+ 
 		}
 	}
-}
-
-func genClientID() string {
-	// FIXME: it should be uniq UUID, not just a random int
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return fmt.Sprintf("id_%d", rnd.Intn(100))
 }

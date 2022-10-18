@@ -41,7 +41,7 @@ func RunCli(m *g.Model, conn net.Conn) error {
 type model struct {
 	*g.Model
 	// all this field should be exposed because of debug mode
-	Curr g.Point
+	Cur  g.Point
 	Conn net.Conn
 }
 
@@ -55,14 +55,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// current cell on Field
-	c := m.Field[m.Curr[0]][m.Curr[1]]
+	c := m.Field[m.Cur[0]][m.Cur[1]]
 	// current cell on Mines
-	mine := m.Mines[m.Curr[0]][m.Curr[1]]
+	mine := m.Mines[m.Cur[0]][m.Cur[1]]
 
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		if m.State == g.WIN {
 			return m, tea.Quit
 		}
+
+		// each Update client state should send this state on server
+		var eT g.EventType
+		defer func(eT *g.EventType) {
+			e := g.NewEvent(*eT, m.Cur)
+			fmt.Print(e)
+			if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, e.Bytes()); err != nil {
+				log.Printf("can't sent cur to server")
+			}
+		}(&eT)
 
 		switch msg.Type {
 		case tea.KeyCtrlC:
@@ -70,38 +80,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// TODO: I'd like to add WASD control here as well
 		case tea.KeyUp:
-			if m.Curr[0] > 0 {
-				m.Curr[0]--
-				// todo: just to test, remove it
-				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
-					log.Printf("can't sent cur to server")
-				}
+			if m.Cur[0] > 0 {
+				m.Cur[0]--
+				eT = g.CursorMove
 			}
 		case tea.KeyDown:
-			if m.Curr[0] < len(m.Field)-1 {
-				m.Curr[0]++
-				// todo: just to test, remove it
-				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
-					log.Printf("can't sent cur to server")
-				}
+			if m.Cur[0] < len(m.Field)-1 {
+				m.Cur[0]++
+				eT = g.CursorMove
 			}
 		case tea.KeyLeft:
-			if m.Curr[1] > 0 {
-				m.Curr[1]--
-				// todo: just to test, remove it
-				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
-					log.Printf("can't sent cur to server")
-				}
+			if m.Cur[1] > 0 {
+				m.Cur[1]--
+				eT = g.CursorMove
 			}
 		case tea.KeyRight:
-			if m.Curr[1] < len(m.Field[0])-1 {
-				m.Curr[1]++
-				// todo: just to test, remove it
-				if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, m.Curr.ToGob()); err != nil {
-					log.Printf("can't sent cur to server")
-				}
+			if m.Cur[1] < len(m.Field[0])-1 {
+				m.Cur[1]++
+				eT = g.CursorMove
 			}
 
+		// TODO: all open-cell logic should calculate server
 		case tea.KeySpace:
 			switch mine {
 			case g.MINE:
@@ -133,7 +132,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
-				openCell(m.Curr[0], m.Curr[1])
+				openCell(m.Cur[0], m.Cur[1])
 				if m.LeftToOpen == 0 {
 					m.State = g.WIN
 					for r := 0; r < m.N; r++ {
@@ -146,17 +145,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			default:
-				m.Field[m.Curr[0]][m.Curr[1]] = mine
+				m.Field[m.Cur[0]][m.Cur[1]] = mine
 			}
 
 		case tea.KeyEnter:
 			switch c {
 			case g.HIDE:
-				m.Field[m.Curr[0]][m.Curr[1]] = g.FLAG
+				m.Field[m.Cur[0]][m.Cur[1]] = g.FLAG
 			case g.FLAG:
-				m.Field[m.Curr[0]][m.Curr[1]] = g.GESS
+				m.Field[m.Cur[0]][m.Cur[1]] = g.GESS
 			case g.GESS:
-				m.Field[m.Curr[0]][m.Curr[1]] = g.HIDE
+				m.Field[m.Cur[0]][m.Cur[1]] = g.HIDE
 			}
 		}
 	}
@@ -176,7 +175,7 @@ func (m model) View() string {
 			var line string
 			for c := 0; c < m.M; c++ {
 				lo, hi := " ", " "
-				if m.Curr[0] == r && m.Curr[1] == c {
+				if m.Cur[0] == r && m.Cur[1] == c {
 					lo, hi = "[", "]"
 				}
 				line += lo
@@ -202,7 +201,7 @@ func (m model) View() string {
 			var line string
 			for c := 0; c < m.M; c++ {
 				lo, hi := " ", " "
-				if m.Curr[0] == r && m.Curr[1] == c {
+				if m.Cur[0] == r && m.Cur[1] == c {
 					lo, hi = "[", "]"
 					line += lo + string(g.BOOM) + hi
 					continue

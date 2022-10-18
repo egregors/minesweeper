@@ -181,11 +181,18 @@ func (s *Srv) Run() error {
 						//  - [ ] turns (P1 -> P2 -> ...)
 						//  - [ ] client commands and maybe refactor client code maybe
 
-						var p g.Point
-						p.FromGob(msg)
-						s.ps[addr].cur = p
-						log.Printf("GOT request: %s", p.String())
-						s.ui.Send(*s.ps[addr])
+						e := g.NewEventFromBytes(msg)
+						log.Printf("gob :: %s", e)
+
+						switch e.Type {
+						case g.NoOp:
+							log.Printf("NOOP: %v", e.Position)
+						case g.CursorMove:
+							s.ps[addr].cur = e.Position
+							s.ui.Send(*s.ps[addr])
+						default:
+							log.Printf("not implemented yet: %s", e.String())
+						}
 					}
 				}
 			}()
@@ -208,19 +215,13 @@ func (m serverUIModel) Init() tea.Cmd {
 }
 
 func (m serverUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	log.Printf("msg: %T", msg)
-
 	switch msg.(type) {
 	case tea.KeyMsg:
 		return m, tea.Quit
 	case player:
-		//_ := msg.(player)
-		//m.s.log(fmt.Sprintf("%v", p))
-		//m.ps[p.addr].cur = p.cur
-
 		return m, nil
 	default:
-		log.Print("WRONG TYPE")
+		log.Printf("UNDEFINED TYPE: %v", msg)
 		return m, nil
 	}
 }
