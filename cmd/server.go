@@ -153,7 +153,6 @@ func (s *Srv) connectClient(conn net.Conn, addr string) {
 }
 
 func (s *Srv) updateCursor(addr string, p g.Point) {
-	
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.ps[addr].cur = p
@@ -161,9 +160,7 @@ func (s *Srv) updateCursor(addr string, p g.Point) {
 }
 
 func (s *Srv) openCell(addr string) {
-	// mine? -> GAME OVER
-	// zero? -> rec open field
-	// nums? -> open num in the cell
+	s.game.OpenCell(s.ps[addr].cur)
 	s.ui.Send(noop{})
 }
 

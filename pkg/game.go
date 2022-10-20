@@ -39,6 +39,58 @@ type Game struct {
 	dbg bool
 }
 
+func (g Game) OpenCell(p Point) {
+	m := g.M
+	mine := m.Mines[p[0]][p[1]]
+	switch mine {
+	case MINE:
+		g.M.State = OVER
+	case ZERO:
+		var openCell func(r, c int)
+		openCell = func(r, c int) {
+			if m.Field[r][c] == EMPTY {
+				return
+			}
+
+			if m.Mines[r][c] != ZERO {
+				m.Field[r][c] = m.Mines[r][c]
+				return
+			}
+
+			m.Field[r][c] = EMPTY
+			m.LeftToOpen--
+
+			dirs := [][]int{
+				{-1, -1}, {-1, 0}, {-1, 1},
+				{0, -1}, {0, 1},
+				{1, -1}, {1, 0}, {1, 1},
+			}
+			for _, d := range dirs {
+				newR, newC := r+d[0], c+d[1]
+				if newR >= 0 && newR < m.N && newC >= 0 && newC < m.M {
+					openCell(newR, newC)
+				}
+			}
+		}
+		openCell(p[0], p[1])
+		if m.LeftToOpen == 0 {
+			m.State = WIN
+			for r := 0; r < m.N; r++ {
+				for c := 0; c < m.M; c++ {
+					if m.Field[r][c] == HIDE {
+						m.Field[r][c] = m.Mines[r][c]
+					}
+				}
+			}
+		}
+	default:
+		m.Field[p[0]][p[1]] = mine
+	}
+
+	// TODO: send new field state to ALL clients
+
+}
+
 func (g Game) ToGob() []byte {
 	buf := new(bytes.Buffer)
 	encoder := gob.NewEncoder(buf)
