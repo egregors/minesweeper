@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
@@ -28,6 +29,8 @@ var (
 	// 	modelFieldStyle = termenv.Style{}.Foreground(color("39")).Styled
 	// 	modelValStyle   = termenv.Style{}.Foreground(color("87")).Styled
 )
+
+type noop struct{}
 
 type player struct {
 	id       string
@@ -98,6 +101,8 @@ type Srv struct {
 
 	logger g.Logger
 	dbg    bool
+
+	mu sync.Mutex
 }
 
 func NewServer(game *g.Game, dbg bool, logger g.Logger) *Srv {
@@ -117,6 +122,7 @@ func NewServer(game *g.Game, dbg bool, logger g.Logger) *Srv {
 }
 
 func (s *Srv) String() string {
+
 	ls := []string{"\n"}
 	for _, v := range s.ps {
 		status := "ONLINE"
@@ -126,6 +132,31 @@ func (s *Srv) String() string {
 		ls = append(ls, fmt.Sprintf("%s:%s CURR: %s", v.addr, status, v.cur.String()))
 	}
 	return strings.Join(ls, "\n")
+}
+
+func (s *Srv) disconnectClient(addr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ps.disconnect(addr)
+	s.ui.Send(*s.ps[addr])
+}
+
+func (s *Srv) connectClient(conn net.Conn, addr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ps.add(&player{
+		conn:     conn,
+		addr:     addr,
+		isOnline: true,
+	})
+	s.ui.Send(*s.ps[addr])
+}
+
+func (s *Srv) updateCursor(addr string, p g.Point) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ps[addr].cur = p
+	s.ui.Send(*s.ps[addr])
 }
 
 func (s *Srv) Run() error {
@@ -142,7 +173,7 @@ func (s *Srv) Run() error {
 			}
 
 			addr := conn.RemoteAddr().String()
-			log.Printf("Client %s connected", addr)
+			log.Printf("[%s] Client %s connected", addr, addr)
 
 			go func() {
 				defer func() { _ = conn.Close() }()
@@ -151,20 +182,14 @@ func (s *Srv) Run() error {
 					if err != nil {
 						log.Printf("Error receiving data: " + err.Error())
 						log.Printf("Client %s disconnected", addr)
-						s.ps.disconnect(addr)
-						s.ui.Send(*s.ps[addr])
+						s.disconnectClient(addr)
 						return
 					}
 
 					switch op {
 					case ws.OpText:
-						// join \ rejoin player
-						s.ps.add(&player{
-							conn:     conn,
-							addr:     addr,
-							isOnline: true,
-						})
-						s.ui.Send(*s.ps[addr])
+						// join player
+						s.connectClient(conn, addr)
 
 						// send game state to client
 						if err := wsutil.WriteServerMessage(conn, ws.OpBinary, s.game.ToGob()); err != nil {
@@ -182,14 +207,13 @@ func (s *Srv) Run() error {
 						//  - [ ] client commands and maybe refactor client code maybe
 
 						e := g.NewEventFromBytes(msg)
-						log.Printf("gob :: %s", e)
+						log.Printf("[%s] %s", addr, e)
 
 						switch e.Type {
 						case g.NoOp:
-							log.Printf("NOOP: %v", e.Position)
+							s.ui.Send(noop{})
 						case g.CursorMove:
-							s.ps[addr].cur = e.Position
-							s.ui.Send(*s.ps[addr])
+							s.updateCursor(addr, e.Position)
 						default:
 							log.Printf("not implemented yet: %s", e.String())
 						}
@@ -218,6 +242,8 @@ func (m serverUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case tea.KeyMsg:
 		return m, tea.Quit
+	case noop:
+		return m, nil
 	case player:
 		return m, nil
 	default:
@@ -331,6 +357,7 @@ func (m serverUIModel) logsFrame() string {
 		clrCode -= 2
 	}
 
+	// TODO: extract it to utils
 	rev := func(xs []string) {
 		for i := 0; i < len(xs)/2; i++ {
 			xs[i], xs[len(xs)-1-i] = xs[len(xs)-1-i], xs[i]

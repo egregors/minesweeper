@@ -68,7 +68,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var eT g.EventType
 		defer func(eT *g.EventType) {
 			e := g.NewEvent(*eT, m.Cur)
-			fmt.Print(e)
 			if err := wsutil.WriteClientMessage(m.Conn, ws.OpBinary, e.Bytes()); err != nil {
 				log.Printf("can't sent cur to server")
 			}
