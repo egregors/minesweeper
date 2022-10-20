@@ -57,7 +57,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// current cell on Field
 	c := m.Field[m.Cur[0]][m.Cur[1]]
 	// current cell on Mines
-	mine := m.Mines[m.Cur[0]][m.Cur[1]]
+	// mine := m.Mines[m.Cur[0]][m.Cur[1]]
 
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		if m.State == g.WIN {
@@ -101,51 +101,52 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// TODO: all open-cell logic should calculate server
 		case tea.KeySpace:
-			switch mine {
-			case g.MINE:
-				m.State = g.OVER
-			case g.ZERO:
-				var openCell func(r, c int)
-				openCell = func(r, c int) {
-					if m.Field[r][c] == g.EMPTY {
-						return
-					}
+			eT = g.OpenCell
+			// switch mine {
+			// case g.MINE:
+			// 	m.State = g.OVER
+			// case g.ZERO:
+			// 	var openCell func(r, c int)
+			// 	openCell = func(r, c int) {
+			// 		if m.Field[r][c] == g.EMPTY {
+			// 			return
+			// 		}
 
-					if m.Mines[r][c] != g.ZERO {
-						m.Field[r][c] = m.Mines[r][c]
-						return
-					}
+			// 		if m.Mines[r][c] != g.ZERO {
+			// 			m.Field[r][c] = m.Mines[r][c]
+			// 			return
+			// 		}
 
-					m.Field[r][c] = g.EMPTY
-					m.LeftToOpen--
+			// 		m.Field[r][c] = g.EMPTY
+			// 		m.LeftToOpen--
 
-					dirs := [][]int{
-						{-1, -1}, {-1, 0}, {-1, 1},
-						{0, -1}, {0, 1},
-						{1, -1}, {1, 0}, {1, 1},
-					}
-					for _, d := range dirs {
-						newR, newC := r+d[0], c+d[1]
-						if newR >= 0 && newR < m.N && newC >= 0 && newC < m.M {
-							openCell(newR, newC)
-						}
-					}
-				}
-				openCell(m.Cur[0], m.Cur[1])
-				if m.LeftToOpen == 0 {
-					m.State = g.WIN
-					for r := 0; r < m.N; r++ {
-						for c := 0; c < m.M; c++ {
-							if m.Field[r][c] == g.HIDE {
-								m.Field[r][c] = m.Mines[r][c]
-							}
-						}
-					}
-				}
+			// 		dirs := [][]int{
+			// 			{-1, -1}, {-1, 0}, {-1, 1},
+			// 			{0, -1}, {0, 1},
+			// 			{1, -1}, {1, 0}, {1, 1},
+			// 		}
+			// 		for _, d := range dirs {
+			// 			newR, newC := r+d[0], c+d[1]
+			// 			if newR >= 0 && newR < m.N && newC >= 0 && newC < m.M {
+			// 				openCell(newR, newC)
+			// 			}
+			// 		}
+			// 	}
+			// 	openCell(m.Cur[0], m.Cur[1])
+			// 	if m.LeftToOpen == 0 {
+			// 		m.State = g.WIN
+			// 		for r := 0; r < m.N; r++ {
+			// 			for c := 0; c < m.M; c++ {
+			// 				if m.Field[r][c] == g.HIDE {
+			// 					m.Field[r][c] = m.Mines[r][c]
+			// 				}
+			// 			}
+			// 		}
+			// 	}
 
-			default:
-				m.Field[m.Cur[0]][m.Cur[1]] = mine
-			}
+			// default:
+			// 	m.Field[m.Cur[0]][m.Cur[1]] = mine
+			// }
 
 		case tea.KeyEnter:
 			switch c {

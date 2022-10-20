@@ -153,10 +153,18 @@ func (s *Srv) connectClient(conn net.Conn, addr string) {
 }
 
 func (s *Srv) updateCursor(addr string, p g.Point) {
+	
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.ps[addr].cur = p
 	s.ui.Send(*s.ps[addr])
+}
+
+func (s *Srv) openCell(addr string) {
+	// mine? -> GAME OVER
+	// zero? -> rec open field
+	// nums? -> open num in the cell
+	s.ui.Send(noop{})
 }
 
 func (s *Srv) Run() error {
@@ -214,6 +222,8 @@ func (s *Srv) Run() error {
 							s.ui.Send(noop{})
 						case g.CursorMove:
 							s.updateCursor(addr, e.Position)
+						case g.OpenCell:
+							s.openCell(addr)
 						default:
 							log.Printf("not implemented yet: %s", e.String())
 						}
