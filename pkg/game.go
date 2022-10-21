@@ -1,10 +1,7 @@
 package game
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
 )
@@ -91,14 +88,8 @@ func (g Game) OpenCell(p Point) {
 
 }
 
-func (g Game) ToGob() []byte {
-	buf := new(bytes.Buffer)
-	encoder := gob.NewEncoder(buf)
-	err := encoder.Encode(g)
-	if err != nil {
-		log.Printf("can't convert to gob: %s", err.Error())
-	}
-	return buf.Bytes()
+func (g Game) Bytes() []byte {
+	return ToGob(g)
 }
 
 func (g Game) getModel() Model {

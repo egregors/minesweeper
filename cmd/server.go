@@ -161,6 +161,14 @@ func (s *Srv) updateCursor(addr string, p g.Point) {
 
 func (s *Srv) openCell(addr string) {
 	s.game.OpenCell(s.ps[addr].cur)
+	// send new Game state
+	if err := wsutil.WriteServerMessage(s.ps[addr].conn, ws.OpBinary, s.game.Bytes()); err != nil {
+		log.Printf("Error sending data: %s", err.Error())
+		log.Print("Client disconnected")
+		s.ps.disconnect(addr)
+		return
+	}
+	log.Printf("Game update sent to %s", addr)
 	s.ui.Send(noop{})
 }
 
@@ -197,7 +205,7 @@ func (s *Srv) Run() error {
 						s.connectClient(conn, addr)
 
 						// send game state to client
-						if err := wsutil.WriteServerMessage(conn, ws.OpBinary, s.game.ToGob()); err != nil {
+						if err := wsutil.WriteServerMessage(conn, ws.OpBinary, s.game.Bytes()); err != nil {
 							log.Printf("Error sending data: %s", err.Error())
 							log.Print("Client disconnected")
 							s.ps.disconnect(addr)
