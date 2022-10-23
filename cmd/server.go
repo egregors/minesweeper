@@ -105,7 +105,7 @@ type Srv struct {
 	mu sync.Mutex
 }
 
-func NewServer(game *g.Game, dbg bool, logger g.Logger) *Srv {
+func NewServer(game *g.Game, logger g.Logger, dbg bool) *Srv {
 	s := new(Srv)
 	s.game = game
 	s.ps = make(players)
@@ -172,6 +172,7 @@ func (s *Srv) updateAllClients() {
 }
 
 func (s *Srv) openCell(addr string) {
+
 	s.game.OpenCell(s.ps[addr].cur)
 	s.updateAllClients()
 	s.ui.Send(noop{})
@@ -240,7 +241,6 @@ func (s *Srv) Run() error {
 					}
 				}
 			}()
-
 		}))
 	}()
 
@@ -350,6 +350,7 @@ func (m serverUIModel) playersFrame() string {
 	return strings.Join(ps, "\n")
 }
 
+// TODO: move it into cli.go
 func (m serverUIModel) logsFrame() string {
 	// TODO: add time marks and fancy colors
 

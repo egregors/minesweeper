@@ -7,10 +7,10 @@ start:  ## Run main.go with hot-reload
 	@nodemon --watch './**/*.go' --signal SIGTERM --exec 'clear && go' run main.go
 
 s:  ## Run server
-	@go run main.go -d
+	@go run main.go -d --dbg
 
 c:	## Run client
-	@go run main.go
+	@go run main.go --dbg
 
 ## Help
 

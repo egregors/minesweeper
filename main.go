@@ -33,13 +33,13 @@ func main() {
 
 	if opts.Srv {
 		game := g.NewGame(g.EASY, true)
-		if err := cmd.NewServer(game, opts.Dbg, logger).Run(); err != nil {
+		if err := cmd.NewServer(game, logger, opts.Dbg).Run(); err != nil {
 			panic(err)
 		}
 		return
 	}
 
-	if err := cmd.NewClient().Run(); err != nil {
+	if err := cmd.NewClient("ws://127.0.0.1:8080", logger, opts.Dbg).Run(); err != nil {
 		panic(err)
 	}
 }
