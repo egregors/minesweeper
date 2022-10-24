@@ -75,9 +75,8 @@ func (c *Client) pullServerEvents() {
 				fmt.Printf("Can't receive data: %s", err.Error())
 				continue
 			}
-			// TODO: mu?
-			// TODO: sent noop to update UI
 			c.updateGame(msg)
+			c.ui.Send(noop{})
 		}
 	}
 }
@@ -118,7 +117,7 @@ func (c *Client) Run() error {
 				c.updateGame(msg)
 				c.ui = tea.NewProgram(clientUIModel{
 					Model: c.game.M,
-					Conn: c.conn,
+					Conn:  c.conn,
 					Cur:   g.Point{},
 					Dbg:   c.dbg,
 				})
@@ -155,6 +154,14 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// current cell on Field
 	c := m.Field[m.Cur[0]][m.Cur[1]]
 
+
+	// TODO: rewrite in within switch case
+	// update UI
+	if _, ok := msg.(noop); ok {
+		return m, nil
+	}
+
+	// control
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		if m.State == g.WIN {
 			return m, tea.Quit

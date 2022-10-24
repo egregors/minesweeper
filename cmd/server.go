@@ -30,8 +30,6 @@ var (
 	// 	modelValStyle   = termenv.Style{}.Foreground(color("87")).Styled
 )
 
-type noop struct{}
-
 type player struct {
 	id       string
 	addr     string

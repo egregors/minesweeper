@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// noop is a No Operation event just to update UI
+type noop struct{}
+
 var (
 	color      = termenv.EnvColorProfile().Color
 	oneMines   = termenv.Style{}.Foreground(color("4")).Styled
