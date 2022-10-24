@@ -8,6 +8,7 @@ import (
 
 	"reflect"
 	"strings"
+	"strconv"
 )
 
 // noop is a No Operation event just to update UI
@@ -92,4 +93,50 @@ func getModelFrame(m DebugModel) string {
 	}
 
 	return strings.Join(res, "\n")
+}
+
+type LoggedModel interface {
+	GetLogs() []string
+}
+
+func  LogsWidget(m LoggedModel) string {
+	// TODO: add time marks and fancy colors
+
+	// logsFrameSize should be less than 23 (visible ASCII colors 232-255)
+	logsFrameSize := 10
+	// logs := m.s.logger.GetLogs()
+	logs := m.GetLogs()
+
+	title := "LOGS:"
+	var logLines []string
+
+	limit := len(logs)
+	if limit > logsFrameSize {
+		limit = logsFrameSize
+	}
+
+	clrCode := 255
+	s := func(c int, s string) string {
+		clr := strconv.Itoa(c)
+		return termenv.Style{}.Foreground(color(clr)).Styled(s)
+	}
+
+	for i := len(logs) - 1; i > len(logs)-limit; i-- {
+		logLines = append(logLines, s(clrCode, logs[i]))
+		clrCode -= 2
+	}
+
+	// TODO: extract it to utils
+	rev := func(xs []string) {
+		for i := 0; i < len(xs)/2; i++ {
+			xs[i], xs[len(xs)-1-i] = xs[len(xs)-1-i], xs[i]
+		}
+	}
+
+	rev(logLines)
+
+	return strings.Join([]string{
+		title,
+		strings.Join(logLines, ""),
+	}, "\n")
 }

@@ -95,7 +95,6 @@ func (c *Client) Run() error {
 
 		// game loop
 		for {
-			// TODO: client should wait messages from the Server in separated goroutine
 			switch c.state {
 			case INIT:
 				// hi server message
@@ -125,11 +124,9 @@ func (c *Client) Run() error {
 				// pull game update form the server
 				go c.pullServerEvents()
 
-				// TODO: should it be here, or like in server part
 				log.Print("UI started")
 				return c.ui.Start()
 			}
-
 		}
 	}
 }
