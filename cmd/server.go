@@ -169,6 +169,8 @@ func (s *Srv) updateAllClients() {
 
 func (s *Srv) openCell(addr string) {
 	s.game.OpenCell(s.ps[addr].cur)
+	log.Printf("Updated: %s", s.game)
+	// TODO: when game is over, server must sent a GAMEOVER field to show
 	s.updateAllClients()
 	s.ui.Send(noop{})
 }

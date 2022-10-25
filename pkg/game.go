@@ -36,12 +36,29 @@ type Game struct {
 	dbg bool
 }
 
-func (g Game) OpenCell(p Point) {
+func (g Game) String() string {
+	return fmt.Sprintf("ST: %s", g.getState())
+}
+
+func (g *Game) OpenCell(p Point) {
+	// TODO: check if this turn leads to WIN and prepare WIN field for clients
 	m := g.M
 	mine := m.Mines[p[0]][p[1]]
 	switch mine {
 	case MINE:
 		g.M.State = OVER
+		// setup all mines and BOOM
+		for r := 0; r < g.M.N; r++ {
+			for c := 0; c < g.M.M; c++ {
+				if g.M.Mines[r][c] == MINE {
+					g.M.Field[r][c] = MINE
+				}
+				if r == p[0] && c == p[1] {
+					g.M.Field[r][c] = BOOM
+				}
+			}
+		}
+
 	case ZERO:
 		var openCell func(r, c int)
 		openCell = func(r, c int) {
@@ -85,11 +102,20 @@ func (g Game) OpenCell(p Point) {
 	}
 }
 
-func (g Game) Bytes() []byte {
+func (g *Game) Bytes() []byte {
 	return ToGob(g)
 }
 
-func (g Game) getModel() Model {
+func (g *Game) getState() string {
+	statesTitles := []string{
+		"GAME",
+		"OVER",
+		"WIN",
+	}
+	return statesTitles[g.M.State]
+}
+
+func (g *Game) getModel() Model {
 	return g.M
 }
 

@@ -20,6 +20,7 @@ type clientState int
 const (
 	INIT clientState = iota
 	GAME
+	OVER
 )
 
 type Client struct {
@@ -76,8 +77,13 @@ func (c *Client) pullServerEvents() {
 				continue
 			}
 			c.updateGame(msg)
-			log.Println("Got update from server")
+			log.Printf("Updated: %s", c.game)
 			c.ui.Send(noop{})
+		case OVER:
+			// TODO: why I do not see it in log?
+			log.Print("Game is over, stop pulling...")
+			c.ui.Send(noop{})
+			return
 		}
 	}
 }
@@ -116,7 +122,7 @@ func (c *Client) Run() error {
 				c.state = GAME
 				c.updateGame(msg)
 				c.ui = tea.NewProgram(clientUIModel{
-					Model: c.game.M,
+					Model: &c.game.M,
 					Conn:  c.conn,
 					Cur:   g.Point{},
 					Dbg:   c.dbg,
@@ -134,7 +140,7 @@ func (c *Client) Run() error {
 }
 
 type clientUIModel struct {
-	g.Model
+	*g.Model
 	Cur  g.Point
 	Conn net.Conn
 
@@ -148,10 +154,6 @@ func (m clientUIModel) Init() tea.Cmd {
 }
 
 func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.State == g.OVER {
-		return m, tea.Quit
-	}
-
 	// current cell on Field
 	c := m.Field[m.Cur[0]][m.Cur[1]]
 
@@ -203,18 +205,23 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case tea.KeySpace:
-			eT = g.OpenCell
+			if m.State == g.GAME {
+				eT = g.OpenCell
+			}
 
 		case tea.KeyEnter:
-			switch c {
-			case g.HIDE:
-				m.Field[m.Cur[0]][m.Cur[1]] = g.FLAG
-			case g.FLAG:
-				m.Field[m.Cur[0]][m.Cur[1]] = g.GESS
-			case g.GESS:
-				m.Field[m.Cur[0]][m.Cur[1]] = g.HIDE
+			if m.State == g.GAME {
+				switch c {
+				case g.HIDE:
+					m.Field[m.Cur[0]][m.Cur[1]] = g.FLAG
+				case g.FLAG:
+					m.Field[m.Cur[0]][m.Cur[1]] = g.GESS
+				case g.GESS:
+					m.Field[m.Cur[0]][m.Cur[1]] = g.HIDE
+				}
 			}
 		}
+
 	}
 	return m, nil
 }
@@ -226,59 +233,30 @@ func (m clientUIModel) View() string {
 		"     ===================",
 	}
 	// TODO: extract to frames
+
+	// just render field
+	for r := 0; r < m.N; r++ {
+		var line string
+		for c := 0; c < m.M; c++ {
+			lo, hi := " ", " "
+			if m.Cur[0] == r && m.Cur[1] == c {
+				lo, hi = "[", "]"
+			}
+			line += lo
+			line += styled(m.Field[r][c])
+			line += hi
+		}
+		frame = append(frame, line)
+	}
+
 	switch m.State {
-	case g.GAME:
-		for r := 0; r < m.N; r++ {
-			var line string
-			for c := 0; c < m.M; c++ {
-				lo, hi := " ", " "
-				if m.Cur[0] == r && m.Cur[1] == c {
-					lo, hi = "[", "]"
-				}
-				line += lo
-				line += styled(m.Field[r][c])
-				line += hi
-			}
-			frame = append(frame, line)
-		}
 	case g.WIN:
-		for r := 0; r < m.N; r++ {
-			var line string
-			for c := 0; c < m.M; c++ {
-				lo, hi := " ", " "
-				line += lo
-				line += styled(m.Field[r][c])
-				line += hi
-			}
-			frame = append(frame, line)
-		}
 		frame = append(frame, "YOU WON")
 	case g.OVER:
-		for r := 0; r < m.N; r++ {
-			var line string
-			for c := 0; c < m.M; c++ {
-				lo, hi := " ", " "
-				if m.Cur[0] == r && m.Cur[1] == c {
-					lo, hi = "[", "]"
-					line += lo + string(g.BOOM) + hi
-					continue
-				}
-				if m.Mines[r][c] == g.MINE {
-					line += lo + string(g.MINE) + hi
-					continue
-				}
-				line += lo
-				line += styled(m.Field[r][c])
-				line += hi
-
-			}
-			frame = append(frame, string(line))
-		}
 		frame = append(frame, "GAME OVER")
 	}
 
-	// FIXME: don't work :(
-	frame = append(frame, LogsWidget(m, 3))
+	frame = append(frame, LogsWidget(m, 5))
 
 	if m.Dbg {
 		frame = append(frame, DebugWidget(m))
