@@ -83,9 +83,6 @@ func (g Game) OpenCell(p Point) {
 	default:
 		m.Field[p[0]][p[1]] = mine
 	}
-
-	// TODO: send new field state to ALL clients
-
 }
 
 func (g Game) Bytes() []byte {

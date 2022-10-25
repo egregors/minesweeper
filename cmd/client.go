@@ -72,10 +72,11 @@ func (c *Client) pullServerEvents() {
 		case GAME:
 			msg, _, err := wsutil.ReadServerData(c.conn)
 			if err != nil {
-				fmt.Printf("Can't receive data: %s", err.Error())
+				log.Printf("Can't receive data: %s", err.Error())
 				continue
 			}
 			c.updateGame(msg)
+			log.Println("Got update from server")
 			c.ui.Send(noop{})
 		}
 	}
@@ -119,6 +120,7 @@ func (c *Client) Run() error {
 					Conn:  c.conn,
 					Cur:   g.Point{},
 					Dbg:   c.dbg,
+					C:     c,
 				})
 
 				// pull game update form the server
@@ -136,6 +138,8 @@ type clientUIModel struct {
 	Cur  g.Point
 	Conn net.Conn
 
+	C *Client
+
 	Dbg bool
 }
 
@@ -150,7 +154,6 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// current cell on Field
 	c := m.Field[m.Cur[0]][m.Cur[1]]
-
 
 	// TODO: rewrite in within switch case
 	// update UI
@@ -199,7 +202,6 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				eT = g.CursorMove
 			}
 
-		// TODO: all open-cell logic should calculate server
 		case tea.KeySpace:
 			eT = g.OpenCell
 
@@ -223,7 +225,7 @@ func (m clientUIModel) View() string {
 		"     *** Minesweeper ***",
 		"     ===================",
 	}
-
+	// TODO: extract to frames
 	switch m.State {
 	case g.GAME:
 		for r := 0; r < m.N; r++ {
@@ -275,9 +277,16 @@ func (m clientUIModel) View() string {
 		frame = append(frame, "GAME OVER")
 	}
 
+	// FIXME: don't work :(
+	frame = append(frame, LogsWidget(m, 3))
+
 	if m.Dbg {
 		frame = append(frame, DebugWidget(m))
 	}
 
 	return strings.Join(frame, "\n")
+}
+
+func (m clientUIModel) GetLogs() []string {
+	return m.C.logger.GetLogs()
 }

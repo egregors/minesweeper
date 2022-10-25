@@ -162,14 +162,12 @@ func (s *Srv) updateAllClients() {
 			log.Printf("Error sending data: %s", err.Error())
 			log.Printf("Client %s disconnected", addr)
 			s.ps.disconnect(addr)
-			return
 		}
 		log.Printf("Game update sent to %s", addr)
 	}
 }
 
 func (s *Srv) openCell(addr string) {
-
 	s.game.OpenCell(s.ps[addr].cur)
 	s.updateAllClients()
 	s.ui.Send(noop{})
@@ -274,7 +272,7 @@ func (m serverUIModel) View() string {
 		m.titleFrame(),
 		m.fieldFrame(),
 		m.playersFrame(),
-		LogsWidget(m),
+		LogsWidget(m, 10),
 	}
 	return strings.Join(frames, "\n")
 }
@@ -350,46 +348,3 @@ func (m serverUIModel) playersFrame() string {
 	}
 	return strings.Join(ps, "\n")
 }
-
-// TODO: move it into cli.go
-// func (m serverUIModel) logsFrame() string {
-// 	// TODO: add time marks and fancy colors
-
-// 	// logsFrameSize should be less than 23 (visible ASCII colors 232-255)
-// 	logsFrameSize := 10
-// 	logs := m.s.logger.GetLogs()
-
-// 	title := "LOGS:"
-// 	var logLines []string
-
-// 	limit := len(logs)
-// 	if limit > logsFrameSize {
-// 		limit = logsFrameSize
-// 	}
-
-// 	// TODO: extract it maybe?
-// 	clrCode := 255
-// 	s := func(c int, s string) string {
-// 		clr := strconv.Itoa(c)
-// 		return termenv.Style{}.Foreground(color(clr)).Styled(s)
-// 	}
-
-// 	for i := len(logs) - 1; i > len(logs)-limit; i-- {
-// 		logLines = append(logLines, s(clrCode, logs[i]))
-// 		clrCode -= 2
-// 	}
-
-// 	// TODO: extract it to utils
-// 	rev := func(xs []string) {
-// 		for i := 0; i < len(xs)/2; i++ {
-// 			xs[i], xs[len(xs)-1-i] = xs[len(xs)-1-i], xs[i]
-// 		}
-// 	}
-
-// 	rev(logLines)
-
-// 	return strings.Join([]string{
-// 		title,
-// 		strings.Join(logLines, ""),
-// 	}, "\n")
-// }

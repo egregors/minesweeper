@@ -7,8 +7,8 @@ import (
 	"github.com/muesli/termenv"
 
 	"reflect"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 // noop is a No Operation event just to update UI
@@ -99,20 +99,20 @@ type LoggedModel interface {
 	GetLogs() []string
 }
 
-func  LogsWidget(m LoggedModel) string {
+func LogsWidget(m LoggedModel, tail int) string {
 	// TODO: add time marks and fancy colors
-
-	// logsFrameSize should be less than 23 (visible ASCII colors 232-255)
-	logsFrameSize := 10
-	// logs := m.s.logger.GetLogs()
+	// tail should be less than 23 (visible ASCII colors 232-255)
+	if tail == 0 {
+		tail = 10
+	}
 	logs := m.GetLogs()
 
 	title := "LOGS:"
 	var logLines []string
 
 	limit := len(logs)
-	if limit > logsFrameSize {
-		limit = logsFrameSize
+	if limit > tail {
+		limit = tail
 	}
 
 	clrCode := 255
