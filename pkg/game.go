@@ -30,14 +30,14 @@ const (
 )
 
 type Game struct {
-	M          Model
+	M          *Model
 	Difficulty Difficulty
 
 	dbg bool
 }
 
 func (g Game) String() string {
-	return fmt.Sprintf("ST: %s", g.getState())
+	return fmt.Sprintf("ST: %s, lTo: %d", g.getState(), g.M.LeftToOpen)
 }
 
 func (g *Game) OpenCell(p Point) {
@@ -116,7 +116,7 @@ func (g *Game) getState() string {
 }
 
 func (g *Game) getModel() Model {
-	return g.M
+	return *g.M
 }
 
 func NewGame(difficulty Difficulty, dbg bool) *Game {
@@ -132,7 +132,7 @@ func NewGame(difficulty Difficulty, dbg bool) *Game {
 	}
 
 	return &Game{
-		M:          m,
+		M:          &m,
 		Difficulty: difficulty,
 		dbg:        dbg,
 	}

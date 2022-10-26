@@ -122,7 +122,7 @@ func (c *Client) Run() error {
 				c.state = GAME
 				c.updateGame(msg)
 				c.ui = tea.NewProgram(clientUIModel{
-					Model: &c.game.M,
+					Model: c.game.M,
 					Conn:  c.conn,
 					Cur:   g.Point{},
 					Dbg:   c.dbg,
