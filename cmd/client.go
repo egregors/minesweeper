@@ -108,39 +108,40 @@ func (c *Client) Run() error {
 		for {
 			switch c.state {
 			case INIT:
-				// hi server message
-				if err := wsutil.WriteClientMessage(c.conn, ws.OpText, nil); err != nil {
-					fmt.Println("Cannot send: " + err.Error())
-					continue
-				}
-
-				// get game data
-				msg, _, err := wsutil.ReadServerData(c.conn)
-				if err != nil {
-					fmt.Println("Cannot receive data: " + err.Error())
-					continue
-				}
-
-				// start game
-				// TODO: extract it somehow
-				c.state = GAME
-				c.updateGame(msg)
-				c.ui = tea.NewProgram(clientUIModel{
-					Model: c.game.M,
-					Conn:  c.conn,
-					Cur:   g.Point{},
-					Dbg:   c.dbg,
-					C:     c,
-				})
-
-				// pull game update form the server
-				go c.pullServerEvents()
-
-				log.Print("UI started")
-				return c.ui.Start()
+				return c.initGame()
 			}
 		}
 	}
+}
+
+func (c *Client) initGame() error {
+	// hi server message
+	if err := wsutil.WriteClientMessage(c.conn, ws.OpText, nil); err != nil {
+		return fmt.Errorf("cannot send initial message: %w", err)
+	}
+
+	// get game data
+	msg, _, err := wsutil.ReadServerData(c.conn)
+	if err != nil {
+		return fmt.Errorf("cannot receive game data: %w", err)
+	}
+
+	// start game
+	c.state = GAME
+	c.updateGame(msg)
+	c.ui = tea.NewProgram(clientUIModel{
+		Model: c.game.M,
+		Conn:  c.conn,
+		Cur:   g.Point{},
+		Dbg:   c.dbg,
+		C:     c,
+	})
+
+	// pull game update from the server
+	go c.pullServerEvents()
+
+	log.Print("UI started")
+	return c.ui.Start()
 }
 
 type clientUIModel struct {
