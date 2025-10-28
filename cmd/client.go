@@ -253,6 +253,21 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m clientUIModel) View() string {
+	frame := []string{
+		m.titleFrame(),
+		m.fieldFrame(),
+		m.statusFrame(),
+		LogsWidget(m, 5),
+	}
+
+	if m.Dbg {
+		frame = append(frame, DebugWidget(m))
+	}
+
+	return strings.Join(frame, "\n")
+}
+
+func (m clientUIModel) titleFrame() string {
 	// Calculate field width (each cell is 3 characters: space + char + space)
 	fieldWidth := m.M * 3
 	title := "*** Minesweeper ***"
@@ -266,13 +281,11 @@ func (m clientUIModel) View() string {
 	paddedTitle := strings.Repeat(" ", titlePadding) + title
 	paddedSeparator := strings.Repeat(" ", titlePadding) + separator
 	
-	frame := []string{
-		paddedTitle,
-		paddedSeparator,
-	}
-	// TODO: extract to frames
+	return strings.Join([]string{paddedTitle, paddedSeparator}, "\n")
+}
 
-	// just render field
+func (m clientUIModel) fieldFrame() string {
+	var lines []string
 	for r := 0; r < m.N; r++ {
 		var line string
 		for c := 0; c < m.M; c++ {
@@ -284,23 +297,20 @@ func (m clientUIModel) View() string {
 			line += styled(m.Field[r][c])
 			line += hi
 		}
-		frame = append(frame, line)
+		lines = append(lines, line)
 	}
+	return strings.Join(lines, "\n")
+}
 
+func (m clientUIModel) statusFrame() string {
 	switch m.State {
 	case g.WIN:
-		frame = append(frame, "YOU WON")
+		return "YOU WON"
 	case g.OVER:
-		frame = append(frame, "GAME OVER")
+		return "GAME OVER"
+	default:
+		return ""
 	}
-
-	frame = append(frame, LogsWidget(m, 5))
-
-	if m.Dbg {
-		frame = append(frame, DebugWidget(m))
-	}
-
-	return strings.Join(frame, "\n")
 }
 
 func (m clientUIModel) GetLogs() []string {
