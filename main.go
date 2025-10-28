@@ -11,9 +11,10 @@ import (
 )
 
 type Opts struct {
-	Dbg bool `long:"dbg" env:"DEBUG" description:"Debug mode"`
-	// TODO: rework CLI
-	Srv bool `short:"d"`
+	Server bool `short:"s" long:"server" description:"Run as server"`
+	Client bool `short:"c" long:"client" description:"Run as client"`
+	Addr   string `short:"a" long:"addr" default:"127.0.0.1:8080" description:"Server address (for client mode) or bind address (for server mode)"`
+	Dbg    bool `long:"debug" env:"DEBUG" description:"Enable debug mode"`
 }
 
 func main() {
@@ -31,7 +32,12 @@ func main() {
 	logger := g.NewLogger()
 	log.SetOutput(logger)
 
-	if opts.Srv {
+	// If neither server nor client is specified, default to client mode
+	if !opts.Server && !opts.Client {
+		opts.Client = true
+	}
+
+	if opts.Server {
 		game := g.NewGame(g.EASY, true)
 		if err := cmd.NewServer(game, logger, opts.Dbg).Run(); err != nil {
 			panic(err)
@@ -39,7 +45,10 @@ func main() {
 		return
 	}
 
-	if err := cmd.NewClient("ws://127.0.0.1:8080", logger, opts.Dbg).Run(); err != nil {
-		panic(err)
+	if opts.Client {
+		serverAddr := "ws://" + opts.Addr
+		if err := cmd.NewClient(serverAddr, logger, opts.Dbg).Run(); err != nil {
+			panic(err)
+		}
 	}
 }
