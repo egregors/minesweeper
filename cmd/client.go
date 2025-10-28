@@ -157,14 +157,13 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// current cell on Field
 	c := m.Field[m.Cur[0]][m.Cur[1]]
 
-	// TODO: rewrite in within switch case
-	// update UI
-	if _, ok := msg.(noop); ok {
+	switch msg := msg.(type) {
+	case noop:
+		// update UI
 		return m, nil
-	}
 
-	// control
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	case tea.KeyMsg:
+		// control
 		if m.State == g.WIN {
 			return m, tea.Quit
 		}
@@ -245,7 +244,6 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-
 	}
 	return m, nil
 }
