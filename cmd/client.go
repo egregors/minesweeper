@@ -253,10 +253,22 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m clientUIModel) View() string {
-	// TODO: title should be relative to Field wight
+	// Calculate field width (each cell is 3 characters: space + char + space)
+	fieldWidth := m.M * 3
+	title := "*** Minesweeper ***"
+	separator := strings.Repeat("=", len(title))
+	
+	// Center the title based on field width
+	titlePadding := (fieldWidth - len(title)) / 2
+	if titlePadding < 0 {
+		titlePadding = 0
+	}
+	paddedTitle := strings.Repeat(" ", titlePadding) + title
+	paddedSeparator := strings.Repeat(" ", titlePadding) + separator
+	
 	frame := []string{
-		"     *** Minesweeper ***",
-		"     ===================",
+		paddedTitle,
+		paddedSeparator,
 	}
 	// TODO: extract to frames
 
