@@ -101,14 +101,13 @@ type LoggedModel interface {
 }
 
 func LogsWidget(m LoggedModel, tail int) string {
-	// TODO: add time marks and fancy colors
 	// tail should be less than 23 (visible ASCII colors 232-255)
 	if tail == 0 {
 		tail = 10
 	}
 	logs := m.GetLogs()
 
-	title := "LOGS:"
+	title := termenv.Style{}.Bold().Styled("LOGS:")
 	var logLines []string
 
 	limit := len(logs)
@@ -116,15 +115,42 @@ func LogsWidget(m LoggedModel, tail int) string {
 		limit = tail
 	}
 
+	// Use gradient of colors from dark to light (232-255)
 	clrCode := 255
-	s := func(c int, s string) string {
-		clr := strconv.Itoa(c)
-		return termenv.Style{}.Foreground(color(clr)).Styled(s)
+	clrStep := 23 / tail
+	if clrStep < 1 {
+		clrStep = 1
 	}
 
 	for i := len(logs) - 1; i > len(logs)-limit; i-- {
-		logLines = append(logLines, s(clrCode, logs[i]))
-		clrCode -= 2
+		log := logs[i]
+		
+		// Parse and colorize timestamp if present
+		// Log format is typically: "2006/01/02 15:04:05 message"
+		coloredLog := log
+		if len(log) > 19 && log[4] == '/' && log[7] == '/' && log[13] == ':' && log[16] == ':' {
+			timestamp := log[:19]
+			message := log[19:]
+			
+			// Style timestamp in cyan/blue
+			styledTimestamp := termenv.Style{}.Foreground(color("39")).Styled(timestamp)
+			
+			// Gradient style for message
+			clr := strconv.Itoa(clrCode)
+			styledMessage := termenv.Style{}.Foreground(color(clr)).Styled(message)
+			
+			coloredLog = styledTimestamp + styledMessage
+		} else {
+			// No timestamp, just apply gradient color
+			clr := strconv.Itoa(clrCode)
+			coloredLog = termenv.Style{}.Foreground(color(clr)).Styled(log)
+		}
+		
+		logLines = append(logLines, coloredLog)
+		clrCode -= clrStep
+		if clrCode < 232 {
+			clrCode = 232
+		}
 	}
 
 	g.ReverseStrings(logLines)
