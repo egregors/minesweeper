@@ -182,7 +182,6 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
-		// TODO: I'd like to add WASD control here as well
 		case tea.KeyUp:
 			if m.Cur[0] > 0 {
 				m.Cur[0]--
@@ -218,6 +217,31 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.Field[m.Cur[0]][m.Cur[1]] = g.GESS
 				case g.GESS:
 					m.Field[m.Cur[0]][m.Cur[1]] = g.HIDE
+				}
+			}
+
+		default:
+			// WASD controls
+			switch msg.String() {
+			case "w":
+				if m.Cur[0] > 0 {
+					m.Cur[0]--
+					eT = g.CursorMove
+				}
+			case "s":
+				if m.Cur[0] < len(m.Field)-1 {
+					m.Cur[0]++
+					eT = g.CursorMove
+				}
+			case "a":
+				if m.Cur[1] > 0 {
+					m.Cur[1]--
+					eT = g.CursorMove
+				}
+			case "d":
+				if m.Cur[1] < len(m.Field[0])-1 {
+					m.Cur[1]++
+					eT = g.CursorMove
 				}
 			}
 		}
