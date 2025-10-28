@@ -4,6 +4,7 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 
+	g "github.com/egregors/minesweeper/pkg"
 	"github.com/muesli/termenv"
 
 	"reflect"
@@ -126,14 +127,7 @@ func LogsWidget(m LoggedModel, tail int) string {
 		clrCode -= 2
 	}
 
-	// TODO: extract it to utils
-	rev := func(xs []string) {
-		for i := 0; i < len(xs)/2; i++ {
-			xs[i], xs[len(xs)-1-i] = xs[len(xs)-1-i], xs[i]
-		}
-	}
-
-	rev(logLines)
+	g.ReverseStrings(logLines)
 
 	return strings.Join([]string{
 		title,

@@ -25,3 +25,10 @@ func FromGob[T any](from []byte, to *T) {
 		log.Printf("can't convert from gob: %s", err.Error())
 	}
 }
+
+// ReverseStrings reverses a slice of strings in place
+func ReverseStrings(xs []string) {
+	for i := 0; i < len(xs)/2; i++ {
+		xs[i], xs[len(xs)-1-i] = xs[len(xs)-1-i], xs[i]
+	}
+}
