@@ -63,8 +63,6 @@ func (c *Client) connect() error {
 		c.conn = conn
 	}
 	return nil
-
-	// TODO: when should i close the Conn?
 }
 
 func (c *Client) pullServerEvents() {
@@ -99,6 +97,12 @@ func (c *Client) Run() error {
 		}
 
 		log.Println("connected!")
+		// Ensure connection is closed when function exits
+		defer func() {
+			if c.conn != nil {
+				_ = c.conn.Close()
+			}
+		}()
 
 		// game loop
 		for {
