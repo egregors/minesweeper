@@ -213,11 +213,13 @@ func (s *Srv) Run() error {
 						}
 
 					case ws.OpBinary:
-						// TODO:
-						//  - [ ] receive GUSS, FLAG, OPEN command
-						//  - [ ] render new admin field after OPEN
-						//  - [ ] turns (P1 -> P2 -> ...)
-						//  - [ ] client commands and maybe refactor client code maybe
+						// Binary message handling:
+						// ✓ CursorMove - updates player cursor position
+						// ✓ OpenCell - opens cell and updates all clients
+						// Note: FLAG and GESS are client-side markers only
+						// Future enhancements:
+						//  - [ ] Turn-based gameplay (P1 -> P2 -> ...)
+						//  - [ ] Score tracking per player
 
 						e := g.NewEventFromBytes(msg)
 						log.Printf("[%s] %s", addr, e)
