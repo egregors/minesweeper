@@ -182,7 +182,7 @@ func (s *Srv) Run() error {
 		http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, _, _, err := ws.UpgradeHTTP(r, w)
 			if err != nil {
-				log.Printf("Error starting socket server: %s", err.Error())
+				log.Printf("Error starting socket server: %v", err)
 			}
 
 			addr := conn.RemoteAddr().String()
