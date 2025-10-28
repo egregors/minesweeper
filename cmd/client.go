@@ -67,6 +67,17 @@ func (c *Client) connect() error {
 
 func (c *Client) pullServerEvents() {
 	for {
+		// Check if game is over based on server data
+		if c.game != nil && c.game.M != nil && (c.game.M.State == g.OVER || c.game.M.State == g.WIN) {
+			stateStr := "OVER"
+			if c.game.M.State == g.WIN {
+				stateStr = "WIN"
+			}
+			log.Printf("Game ended with state: %s, stopping event pulling...", stateStr)
+			c.ui.Send(noop{})
+			return
+		}
+
 		switch c.state {
 		case GAME:
 			msg, _, err := wsutil.ReadServerData(c.conn)
@@ -78,7 +89,6 @@ func (c *Client) pullServerEvents() {
 			log.Printf("Updated: %s", c.game)
 			c.ui.Send(noop{})
 		case OVER:
-			// TODO: why I do not see it in log?
 			log.Print("Game is over, stop pulling...")
 			c.ui.Send(noop{})
 			return
