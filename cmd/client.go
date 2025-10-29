@@ -63,12 +63,21 @@ func (c *Client) connect() error {
 		c.conn = conn
 	}
 	return nil
-
-	// TODO: when should i close the Conn?
 }
 
 func (c *Client) pullServerEvents() {
 	for {
+		// Check if game is over based on server data
+		if c.game != nil && c.game.M != nil && (c.game.M.State == g.OVER || c.game.M.State == g.WIN) {
+			stateStr := "OVER"
+			if c.game.M.State == g.WIN {
+				stateStr = "WIN"
+			}
+			log.Printf("Game ended with state: %s, stopping event pulling...", stateStr)
+			c.ui.Send(noop{})
+			return
+		}
+
 		switch c.state {
 		case GAME:
 			msg, _, err := wsutil.ReadServerData(c.conn)
@@ -80,7 +89,6 @@ func (c *Client) pullServerEvents() {
 			log.Printf("Updated: %s", c.game)
 			c.ui.Send(noop{})
 		case OVER:
-			// TODO: why I do not see it in log?
 			log.Print("Game is over, stop pulling...")
 			c.ui.Send(noop{})
 			return
@@ -99,44 +107,51 @@ func (c *Client) Run() error {
 		}
 
 		log.Println("connected!")
+		// Ensure connection is closed when function exits
+		defer func() {
+			if c.conn != nil {
+				_ = c.conn.Close()
+			}
+		}()
 
 		// game loop
 		for {
 			switch c.state {
 			case INIT:
-				// hi server message
-				if err := wsutil.WriteClientMessage(c.conn, ws.OpText, nil); err != nil {
-					fmt.Println("Cannot send: " + err.Error())
-					continue
-				}
-
-				// get game data
-				msg, _, err := wsutil.ReadServerData(c.conn)
-				if err != nil {
-					fmt.Println("Cannot receive data: " + err.Error())
-					continue
-				}
-
-				// start game
-				// TODO: extract it somehow
-				c.state = GAME
-				c.updateGame(msg)
-				c.ui = tea.NewProgram(clientUIModel{
-					Model: c.game.M,
-					Conn:  c.conn,
-					Cur:   g.Point{},
-					Dbg:   c.dbg,
-					C:     c,
-				})
-
-				// pull game update form the server
-				go c.pullServerEvents()
-
-				log.Print("UI started")
-				return c.ui.Start()
+				return c.initGame()
 			}
 		}
 	}
+}
+
+func (c *Client) initGame() error {
+	// hi server message
+	if err := wsutil.WriteClientMessage(c.conn, ws.OpText, nil); err != nil {
+		return fmt.Errorf("cannot send initial message: %w", err)
+	}
+
+	// get game data
+	msg, _, err := wsutil.ReadServerData(c.conn)
+	if err != nil {
+		return fmt.Errorf("cannot receive game data: %w", err)
+	}
+
+	// start game
+	c.state = GAME
+	c.updateGame(msg)
+	c.ui = tea.NewProgram(clientUIModel{
+		Model: c.game.M,
+		Conn:  c.conn,
+		Cur:   g.Point{},
+		Dbg:   c.dbg,
+		C:     c,
+	})
+
+	// pull game update from the server
+	go c.pullServerEvents()
+
+	log.Print("UI started")
+	return c.ui.Start()
 }
 
 type clientUIModel struct {
@@ -157,14 +172,13 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// current cell on Field
 	c := m.Field[m.Cur[0]][m.Cur[1]]
 
-	// TODO: rewrite in within switch case
-	// update UI
-	if _, ok := msg.(noop); ok {
+	switch msg := msg.(type) {
+	case noop:
+		// update UI
 		return m, nil
-	}
 
-	// control
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	case tea.KeyMsg:
+		// control
 		if m.State == g.WIN {
 			return m, tea.Quit
 		}
@@ -182,7 +196,6 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
-		// TODO: I'd like to add WASD control here as well
 		case tea.KeyUp:
 			if m.Cur[0] > 0 {
 				m.Cur[0]--
@@ -220,21 +233,70 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.Field[m.Cur[0]][m.Cur[1]] = g.HIDE
 				}
 			}
-		}
 
+		default:
+			// WASD controls
+			switch msg.String() {
+			case "w":
+				if m.Cur[0] > 0 {
+					m.Cur[0]--
+					eT = g.CursorMove
+				}
+			case "s":
+				if m.Cur[0] < len(m.Field)-1 {
+					m.Cur[0]++
+					eT = g.CursorMove
+				}
+			case "a":
+				if m.Cur[1] > 0 {
+					m.Cur[1]--
+					eT = g.CursorMove
+				}
+			case "d":
+				if m.Cur[1] < len(m.Field[0])-1 {
+					m.Cur[1]++
+					eT = g.CursorMove
+				}
+			}
+		}
 	}
 	return m, nil
 }
 
 func (m clientUIModel) View() string {
-	// TODO: title should be relative to Field wight
 	frame := []string{
-		"     *** Minesweeper ***",
-		"     ===================",
+		m.titleFrame(),
+		m.fieldFrame(),
+		m.statusFrame(),
+		LogsWidget(m, 5),
 	}
-	// TODO: extract to frames
 
-	// just render field
+	if m.Dbg {
+		frame = append(frame, DebugWidget(m))
+	}
+
+	return strings.Join(frame, "\n")
+}
+
+func (m clientUIModel) titleFrame() string {
+	// Calculate field width (each cell is 3 characters: space + char + space)
+	fieldWidth := m.M * 3
+	title := "*** Minesweeper ***"
+	separator := strings.Repeat("=", len(title))
+	
+	// Center the title based on field width
+	titlePadding := (fieldWidth - len(title)) / 2
+	if titlePadding < 0 {
+		titlePadding = 0
+	}
+	paddedTitle := strings.Repeat(" ", titlePadding) + title
+	paddedSeparator := strings.Repeat(" ", titlePadding) + separator
+	
+	return strings.Join([]string{paddedTitle, paddedSeparator}, "\n")
+}
+
+func (m clientUIModel) fieldFrame() string {
+	var lines []string
 	for r := 0; r < m.N; r++ {
 		var line string
 		for c := 0; c < m.M; c++ {
@@ -246,23 +308,20 @@ func (m clientUIModel) View() string {
 			line += styled(m.Field[r][c])
 			line += hi
 		}
-		frame = append(frame, line)
+		lines = append(lines, line)
 	}
+	return strings.Join(lines, "\n")
+}
 
+func (m clientUIModel) statusFrame() string {
 	switch m.State {
 	case g.WIN:
-		frame = append(frame, "YOU WON")
+		return "YOU WON"
 	case g.OVER:
-		frame = append(frame, "GAME OVER")
+		return "GAME OVER"
+	default:
+		return ""
 	}
-
-	frame = append(frame, LogsWidget(m, 5))
-
-	if m.Dbg {
-		frame = append(frame, DebugWidget(m))
-	}
-
-	return strings.Join(frame, "\n")
 }
 
 func (m clientUIModel) GetLogs() []string {

@@ -182,9 +182,7 @@ func (s *Srv) Run() error {
 		http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, _, _, err := ws.UpgradeHTTP(r, w)
 			if err != nil {
-				// TODO: use own logger
-				log.Println("Error starting socket server: " + err.Error())
-				log.Printf("Error starting socket server: %s", err.Error())
+				log.Printf("Error starting socket server: %v", err)
 			}
 
 			addr := conn.RemoteAddr().String()
@@ -215,11 +213,13 @@ func (s *Srv) Run() error {
 						}
 
 					case ws.OpBinary:
-						// TODO:
-						//  - [ ] receive GUSS, FLAG, OPEN command
-						//  - [ ] render new admin field after OPEN
-						//  - [ ] turns (P1 -> P2 -> ...)
-						//  - [ ] client commands and maybe refactor client code maybe
+						// Binary message handling:
+						// ✓ CursorMove - updates player cursor position
+						// ✓ OpenCell - opens cell and updates all clients
+						// Note: FLAG and GESS are client-side markers only
+						// Future enhancements:
+						//  - [ ] Turn-based gameplay (P1 -> P2 -> ...)
+						//  - [ ] Score tracking per player
 
 						e := g.NewEventFromBytes(msg)
 						log.Printf("[%s] %s", addr, e)

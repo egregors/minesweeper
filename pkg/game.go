@@ -41,9 +41,14 @@ func (g Game) String() string {
 }
 
 func (g *Game) OpenCell(p Point) {
-	// TODO: check if this turn leads to WIN and prepare WIN field for clients
 	m := g.M
 	mine := m.Mines[p[0]][p[1]]
+	
+	// Skip if already opened
+	if m.Field[p[0]][p[1]] != HIDE && m.Field[p[0]][p[1]] != FLAG && m.Field[p[0]][p[1]] != GESS {
+		return
+	}
+	
 	switch mine {
 	case MINE:
 		g.M.State = OVER
@@ -68,6 +73,7 @@ func (g *Game) OpenCell(p Point) {
 
 			if m.Mines[r][c] != ZERO {
 				m.Field[r][c] = m.Mines[r][c]
+				m.LeftToOpen--
 				return
 			}
 
@@ -87,18 +93,24 @@ func (g *Game) OpenCell(p Point) {
 			}
 		}
 		openCell(p[0], p[1])
-		if m.LeftToOpen == 0 {
-			m.State = WIN
-			for r := 0; r < m.N; r++ {
-				for c := 0; c < m.M; c++ {
-					if m.Field[r][c] == HIDE {
-						m.Field[r][c] = m.Mines[r][c]
-					}
+		
+	default:
+		// Numbered cell (1-8)
+		m.Field[p[0]][p[1]] = mine
+		m.LeftToOpen--
+	}
+	
+	// Check for WIN condition after opening any cell
+	if m.LeftToOpen == 0 && m.State != OVER {
+		m.State = WIN
+		// Reveal all cells for win screen
+		for r := 0; r < m.N; r++ {
+			for c := 0; c < m.M; c++ {
+				if m.Field[r][c] == HIDE || m.Field[r][c] == FLAG || m.Field[r][c] == GESS {
+					m.Field[r][c] = m.Mines[r][c]
 				}
 			}
 		}
-	default:
-		m.Field[p[0]][p[1]] = mine
 	}
 }
 
@@ -208,11 +220,11 @@ func NewModel(n, m, minesCount int, dbg bool) Model {
 		}
 	}
 
-	// count shouldOpen \ empty cells
+	// count shouldOpen (all non-mine cells)
 	var shouldOpen int
 	for _, r := range mines {
 		for _, c := range r {
-			if c == ZERO {
+			if c != MINE {
 				shouldOpen++
 			}
 		}
