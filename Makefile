@@ -1,5 +1,7 @@
 
-.PHONY: help run
+.PHONY: help run build test start server client s c
+
+SHELL := /bin/bash
 
 all: run
 
