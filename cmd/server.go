@@ -229,6 +229,9 @@ func (s *Srv) isPlayerTurn(addr string) bool {
 }
 
 func (s *Srv) openCell(addr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
 	// Check if it's this player's turn
 	if !s.isPlayerTurn(addr) {
 		playerID := s.ps[addr].id
@@ -297,10 +300,10 @@ func (s *Srv) Run() error {
 					case ws.OpBinary:
 						// Binary message handling:
 						// ✓ CursorMove - updates player cursor position
-						// ✓ OpenCell - opens cell and updates all clients
+						// ✓ OpenCell - opens cell and updates all clients (with turn validation)
+						// ✓ Turn-based gameplay (P1 -> P2 -> ...)
 						// Note: FLAG and GESS are client-side markers only
 						// Future enhancements:
-						//  - [ ] Turn-based gameplay (P1 -> P2 -> ...)
 						//  - [ ] Score tracking per player
 
 						e := g.NewEventFromBytes(msg)
