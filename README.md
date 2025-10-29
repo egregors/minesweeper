@@ -58,4 +58,11 @@ Help Options:
 - **Arrow Keys** or **WASD**: Move cursor
 - **Space**: Open cell
 - **Enter**: Cycle flag markers (Flag → Guess → Hidden)
+- **Ctrl+D**: Toggle debug display on/off
 - **Ctrl+C**: Quit game
+
+### Multiplayer Features
+
+- The game supports 2 players taking turns
+- Current player turn is displayed during gameplay
+- Winner announcement when the game ends

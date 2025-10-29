@@ -1,7 +1,15 @@
 
-.PHONY: help run
+.PHONY: help run build test start server client s c
+
+SHELL := /bin/bash
 
 all: run
+
+build:  ## Build the minesweeper binary
+	@go build -o minesweeper
+
+test:  ## Run tests
+	@go test -v ./...
 
 start:  ## Run main.go with hot-reload
 	@nodemon --watch './**/*.go' --signal SIGTERM --exec 'clear && go' run main.go

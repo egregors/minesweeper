@@ -130,30 +130,49 @@ func (c *Client) initGame() error {
 		return fmt.Errorf("cannot send initial message: %w", err)
 	}
 
-	// get game data or error message
+	// get player ID or error message
 	msg, op, err := wsutil.ReadServerData(c.conn)
 	if err != nil {
-		return fmt.Errorf("cannot receive game data: %w", err)
+		return fmt.Errorf("cannot receive response: %w", err)
 	}
 
-	// Check if server sent a text message (error)
+	// Check if server sent a text message (player ID or error)
+	var playerID string
 	if op == ws.OpText {
-		errMsg := string(msg)
-		if strings.HasPrefix(errMsg, "LOBBY_FULL:") {
-			return fmt.Errorf("cannot join game: %s", errMsg[12:])
+		textMsg := string(msg)
+		if strings.HasPrefix(textMsg, "LOBBY_FULL:") {
+			return fmt.Errorf("cannot join game: %s", textMsg[12:])
 		}
-		return fmt.Errorf("server error: %s", errMsg)
+		if strings.HasPrefix(textMsg, "PLAYER_ID:") {
+			playerID = textMsg[10:]
+			log.Printf("Assigned Player ID: %s", playerID)
+		} else {
+			return fmt.Errorf("server error: %s", textMsg)
+		}
+		
+		// Now get the game data
+		msg, op, err = wsutil.ReadServerData(c.conn)
+		if err != nil {
+			return fmt.Errorf("cannot receive game data: %w", err)
+		}
+		
+		if op != ws.OpBinary {
+			return fmt.Errorf("expected binary game data, got: %s", string(msg))
+		}
 	}
 
 	// start game
 	c.state = GAME
 	c.updateGame(msg)
+	
 	c.ui = tea.NewProgram(clientUIModel{
-		Model: c.game.M,
-		Conn:  c.conn,
-		Cur:   g.Point{},
-		Dbg:   c.dbg,
-		C:     c,
+		Model:     c.game.M,
+		Conn:      c.conn,
+		Cur:       g.Point{},
+		Dbg:       c.dbg,
+		ShowDebug: c.dbg,
+		C:         c,
+		PlayerID:  playerID,
 	})
 
 	// pull game update from the server
@@ -170,7 +189,9 @@ type clientUIModel struct {
 
 	C *Client
 
-	Dbg bool
+	Dbg       bool
+	ShowDebug bool   // Toggle for debug display
+	PlayerID  string // Player's own ID (P1 or P2)
 }
 
 func (m clientUIModel) Init() tea.Cmd {
@@ -204,6 +225,11 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
+		
+		case tea.KeyCtrlD:
+			// Toggle debug display with Ctrl+D
+			m.ShowDebug = !m.ShowDebug
+			return m, nil
 
 		case tea.KeyUp:
 			if m.Cur[0] > 0 {
@@ -276,11 +302,12 @@ func (m clientUIModel) View() string {
 	frame := []string{
 		m.titleFrame(),
 		m.fieldFrame(),
+		m.controlsFrame(),
 		m.statusFrame(),
 		LogsWidget(m, 5),
 	}
 
-	if m.Dbg {
+	if m.ShowDebug {
 		frame = append(frame, DebugWidget(m))
 	}
 
@@ -322,15 +349,52 @@ func (m clientUIModel) fieldFrame() string {
 	return strings.Join(lines, "\n")
 }
 
-func (m clientUIModel) statusFrame() string {
-	switch m.State {
-	case g.WIN:
-		return "YOU WON"
-	case g.OVER:
-		return "GAME OVER"
-	default:
-		return ""
+func (m clientUIModel) controlsFrame() string {
+	controls := []string{
+		"",
+		"Controls:",
+		"  Move: Arrow Keys or WASD",
+		"  Open Cell: Space",
+		"  Flag/Guess: Enter",
+		"  Toggle Debug: Ctrl+D",
+		"  Quit: Ctrl+C",
 	}
+	return strings.Join(controls, "\n")
+}
+
+func (m clientUIModel) statusFrame() string {
+	var status []string
+	
+	// Show current turn indicator during gameplay
+	if m.State == g.GAME {
+		turnInfo := fmt.Sprintf("Current Turn: %s", m.CurrentTurn)
+		status = append(status, "", turnInfo)
+	}
+	
+	// Show game end status with winner
+	if m.State == g.WIN || m.State == g.OVER {
+		if m.Winner != "" {
+			winnerMsg := fmt.Sprintf("🎉 %s WINS! 🎉", m.Winner)
+			status = append(status, "", winnerMsg)
+			
+			// Show if you won or lost
+			if m.PlayerID == m.Winner {
+				status = append(status, "Congratulations! You won!")
+			} else {
+				status = append(status, "Better luck next time!")
+			}
+		} else {
+			// Fallback for single player or old game states
+			if m.State == g.WIN {
+				status = append(status, "", "GAME WON!")
+			} else {
+				status = append(status, "", "GAME OVER")
+			}
+		}
+		status = append(status, "Press any key to exit...")
+	}
+	
+	return strings.Join(status, "\n")
 }
 
 func (m clientUIModel) GetLogs() []string {
