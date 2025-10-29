@@ -63,11 +63,8 @@ type DebugModel interface {
 }
 
 func DebugWidget(m DebugModel) string {
-	err := "ERR: "
-
 	s := strings.Join([]string{
 		mainStyle("= = = = = DEBUG = = = = ="),
-		mainStyle("| ") + err,
 		getModelFrame(m),
 		mainStyle("= = = = = ----- = = = = ="),
 	}, "\n")
@@ -78,19 +75,35 @@ func DebugWidget(m DebugModel) string {
 func getModelFrame(m DebugModel) string {
 	e := reflect.ValueOf(&m).Elem().Elem()
 	n := e.NumField()
-	res := make([]string, n)
+	var res []string
 
 	for i := 0; i < n; i++ {
 		varName := e.Type().Field(i).Name
 		varType := e.Type().Field(i).Type
 		varValue := e.Field(i).Interface()
+		
+		// Skip fields that are pointers, connections, or complex objects
+		// to make the debug output more concise
+		if varType.Kind() == reflect.Ptr || 
+		   varType.Kind() == reflect.Interface ||
+		   varType.Kind() == reflect.Func ||
+		   varName == "Conn" || 
+		   varName == "C" ||
+		   varName == "Model" {
+			continue
+		}
+		
+		// Format value more concisely
+		valueStr := fmt.Sprintf("%v", varValue)
+		if len(valueStr) > 50 {
+			valueStr = valueStr[:47] + "..."
+		}
 
-		res[i] = fmt.Sprintf(
-			"%-40s %-20s %-30s",
+		res = append(res, fmt.Sprintf(
+			"%-20s %-30s",
 			mainStyle("| ")+modelFieldStyle(varName),
-			"["+varType.String()+"]",
-			modelValStyle(fmt.Sprintf("%v", varValue)),
-		)
+			modelValStyle(valueStr),
+		))
 	}
 
 	return strings.Join(res, "\n")

@@ -148,12 +148,20 @@ func (c *Client) initGame() error {
 	// start game
 	c.state = GAME
 	c.updateGame(msg)
+	
+	// Determine player ID (P1 or P2) based on connection order
+	// For now, we'll need to get this from server in future enhancement
+	playerID := "P1" // This will be enhanced later to properly detect player number
+	
 	c.ui = tea.NewProgram(clientUIModel{
-		Model: c.game.M,
-		Conn:  c.conn,
-		Cur:   g.Point{},
-		Dbg:   c.dbg,
-		C:     c,
+		Model:       c.game.M,
+		Conn:        c.conn,
+		Cur:         g.Point{},
+		Dbg:         c.dbg,
+		ShowDebug:   c.dbg,
+		C:           c,
+		PlayerID:    playerID,
+		CurrentTurn: "P1", // Game starts with P1
 	})
 
 	// pull game update from the server
@@ -170,7 +178,10 @@ type clientUIModel struct {
 
 	C *Client
 
-	Dbg bool
+	Dbg         bool
+	ShowDebug   bool // Toggle for debug display
+	PlayerID    string
+	CurrentTurn string
 }
 
 func (m clientUIModel) Init() tea.Cmd {
@@ -204,6 +215,11 @@ func (m clientUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
+		
+		case tea.KeyCtrlD:
+			// Toggle debug display with Ctrl+D
+			m.ShowDebug = !m.ShowDebug
+			return m, nil
 
 		case tea.KeyUp:
 			if m.Cur[0] > 0 {
@@ -276,11 +292,12 @@ func (m clientUIModel) View() string {
 	frame := []string{
 		m.titleFrame(),
 		m.fieldFrame(),
+		m.controlsFrame(),
 		m.statusFrame(),
 		LogsWidget(m, 5),
 	}
 
-	if m.Dbg {
+	if m.ShowDebug {
 		frame = append(frame, DebugWidget(m))
 	}
 
@@ -322,15 +339,39 @@ func (m clientUIModel) fieldFrame() string {
 	return strings.Join(lines, "\n")
 }
 
+func (m clientUIModel) controlsFrame() string {
+	controls := []string{
+		"",
+		"Controls:",
+		"  Move: Arrow Keys or WASD",
+		"  Open Cell: Space",
+		"  Flag/Guess: Enter",
+		"  Toggle Debug: Ctrl+D",
+		"  Quit: Ctrl+C",
+	}
+	return strings.Join(controls, "\n")
+}
+
 func (m clientUIModel) statusFrame() string {
+	var status []string
+	
+	// Show current turn indicator during gameplay
+	if m.State == g.GAME {
+		turnInfo := fmt.Sprintf("Current Turn: %s", m.CurrentTurn)
+		status = append(status, "", turnInfo)
+	}
+	
+	// Show game end status
 	switch m.State {
 	case g.WIN:
-		return "YOU WON"
+		// For multiplayer, show which player won
+		// In the future this will be enhanced when we properly track player IDs
+		status = append(status, "", "GAME WON!", "Press any key to exit...")
 	case g.OVER:
-		return "GAME OVER"
-	default:
-		return ""
+		status = append(status, "", "GAME OVER", "Press any key to exit...")
 	}
+	
+	return strings.Join(status, "\n")
 }
 
 func (m clientUIModel) GetLogs() []string {
