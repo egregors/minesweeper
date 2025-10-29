@@ -130,10 +130,19 @@ func (c *Client) initGame() error {
 		return fmt.Errorf("cannot send initial message: %w", err)
 	}
 
-	// get game data
-	msg, _, err := wsutil.ReadServerData(c.conn)
+	// get game data or error message
+	msg, op, err := wsutil.ReadServerData(c.conn)
 	if err != nil {
 		return fmt.Errorf("cannot receive game data: %w", err)
+	}
+
+	// Check if server sent a text message (error)
+	if op == ws.OpText {
+		errMsg := string(msg)
+		if strings.HasPrefix(errMsg, "LOBBY_FULL:") {
+			return fmt.Errorf("cannot join game: %s", errMsg[12:])
+		}
+		return fmt.Errorf("server error: %s", errMsg)
 	}
 
 	// start game
