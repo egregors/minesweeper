@@ -169,6 +169,8 @@ type Model struct {
 	N, M         int
 	LeftToOpen   int
 	State        int
+	Winner       string // ID of the winning player (e.g., "P1", "P2")
+	CurrentTurn  string // ID of player whose turn it is (e.g., "P1", "P2")
 
 	Dbg bool
 }

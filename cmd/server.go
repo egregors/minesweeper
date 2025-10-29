@@ -122,6 +122,7 @@ func NewServer(game *g.Game, logger g.Logger, dbg bool) *Srv {
 	s.game = game
 	s.ps = make(players)
 	s.currentTurn = "P1" // P1 starts
+	s.game.M.CurrentTurn = "P1" // Initialize in model
 	s.ui = tea.NewProgram(serverUIModel{
 		Model: game.M,
 		s:     s,
@@ -217,6 +218,7 @@ func (s *Srv) switchTurn() {
 	} else {
 		s.currentTurn = "P1"
 	}
+	s.game.M.CurrentTurn = s.currentTurn
 	log.Printf("Turn switched to %s", s.currentTurn)
 }
 
@@ -239,11 +241,27 @@ func (s *Srv) openCell(addr string) {
 		return
 	}
 	
+	currentPlayer := s.ps[addr].id
+	
 	s.game.OpenCell(s.ps[addr].cur)
 	log.Printf("Updated: %s", s.game)
 	
-	// Switch turn after a valid move (only if game is still ongoing)
-	if s.game.M.State == g.GAME {
+	// Check if game ended and set winner/loser
+	if s.game.M.State == g.WIN {
+		// Current player wins by opening the last safe cell
+		s.game.M.Winner = currentPlayer
+		log.Printf("Player %s wins by completing the field!", currentPlayer)
+	} else if s.game.M.State == g.OVER {
+		// Current player loses by hitting a mine
+		// The other player wins
+		if currentPlayer == "P1" {
+			s.game.M.Winner = "P2"
+		} else {
+			s.game.M.Winner = "P1"
+		}
+		log.Printf("Player %s hit a mine! Player %s wins!", currentPlayer, s.game.M.Winner)
+	} else if s.game.M.State == g.GAME {
+		// Switch turn only if game continues
 		s.switchTurn()
 	}
 	
@@ -287,6 +305,13 @@ func (s *Srv) Run() error {
 							}
 							log.Printf("Connection rejected: lobby full")
 							return
+						}
+
+						// Send player ID as text message
+						playerID := s.ps[addr].id
+						idMsg := fmt.Sprintf("PLAYER_ID:%s", playerID)
+						if err := wsutil.WriteServerMessage(conn, ws.OpText, []byte(idMsg)); err != nil {
+							log.Printf("Error sending player ID: %s", err.Error())
 						}
 
 						// send game state to client
@@ -430,8 +455,19 @@ func (m serverUIModel) fieldFrame() string {
 func (m serverUIModel) playersFrame() string {
 	var ps []string
 	
-	// Show current turn
-	if m.State == g.GAME {
+	// Show winner if game is over
+	if m.State == g.WIN || m.State == g.OVER {
+		if m.Winner != "" {
+			winnerMsg := fmt.Sprintf("🎉 Winner: %s 🎉", m.Winner)
+			if m.Winner == "P1" {
+				winnerMsg = "🎉 Winner: " + P1Style("P1") + " 🎉"
+			} else if m.Winner == "P2" {
+				winnerMsg = "🎉 Winner: " + P2Style("P2") + " 🎉"
+			}
+			ps = append(ps, "", winnerMsg)
+		}
+	} else if m.State == g.GAME {
+		// Show current turn only during active gameplay
 		turnMsg := fmt.Sprintf("Current Turn: %s", m.s.currentTurn)
 		if m.s.currentTurn == "P1" {
 			turnMsg = "Current Turn: " + P1Style("P1")
@@ -441,6 +477,7 @@ func (m serverUIModel) playersFrame() string {
 		ps = append(ps, turnMsg)
 	}
 	
+	ps = append(ps, "")
 	for _, v := range m.s.ps {
 		ps = append(ps, v.String())
 	}
